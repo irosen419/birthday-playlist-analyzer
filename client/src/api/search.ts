@@ -22,3 +22,21 @@ export async function searchTracks(
     previewUrl: (raw.preview_url || raw.previewUrl) as string | undefined,
   }));
 }
+
+export interface SpotifyArtist {
+  id: string;
+  name: string;
+  images: { url: string }[];
+  genres: string[];
+  popularity: number;
+}
+
+export async function searchArtists(
+  query: string,
+  limit: number = 5
+): Promise<SpotifyArtist[]> {
+  const { data } = await apiClient.get('/api/search', {
+    params: { q: query, type: 'artist', limit },
+  });
+  return data.artists || [];
+}

@@ -5,6 +5,8 @@ interface RegenerateButtonProps {
   lockedTrackIds: Set<string>;
   isGenerating: boolean;
   onRegenerate: () => void;
+  onLockAll: () => void;
+  onUnlockAll: () => void;
 }
 
 export default function RegenerateButton({
@@ -12,8 +14,11 @@ export default function RegenerateButton({
   lockedTrackIds,
   isGenerating,
   onRegenerate,
+  onLockAll,
+  onUnlockAll,
 }: RegenerateButtonProps) {
   const allLocked = tracks.length > 0 && lockedTrackIds.size === tracks.length;
+  const noneLocked = lockedTrackIds.size === 0;
   const someLockedCount = lockedTrackIds.size;
 
   function handleClick() {
@@ -35,13 +40,24 @@ export default function RegenerateButton({
   }
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={isGenerating || allLocked}
-      title={allLocked ? 'Unlock at least one track to regenerate' : undefined}
-      className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-6 py-2 text-sm font-semibold text-white transition-colors hover:border-white disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {isGenerating ? 'Generating...' : 'Regenerate'}
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={handleClick}
+        disabled={isGenerating || allLocked}
+        title={allLocked ? 'Unlock at least one track to regenerate' : undefined}
+        className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-6 py-2 text-sm font-semibold text-white transition-colors hover:border-white disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isGenerating ? 'Generating...' : 'Regenerate'}
+      </button>
+
+      {tracks.length > 0 && (
+        <button
+          onClick={allLocked ? onUnlockAll : onLockAll}
+          className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-[#b3b3b3] transition-colors hover:border-white hover:text-white"
+        >
+          {allLocked ? '🔓 Unlock All' : noneLocked ? '🔒 Lock All' : `🔒 Lock All (${someLockedCount}/${tracks.length})`}
+        </button>
+      )}
+    </div>
   );
 }

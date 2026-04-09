@@ -8,10 +8,16 @@ module Api
         return
       end
 
-      results = spotify_client.search(query: params[:q])
-      tracks = (results.dig("tracks", "items") || []).map { |t| simplify_track(t) }
+      search_type = params[:type] == "artist" ? "artist" : "track"
+      results = spotify_client.search(query: params[:q], types: [search_type], limit: params[:limit]&.to_i || 20)
 
-      render json: { tracks: tracks }
+      if search_type == "artist"
+        artists = (results.dig("artists", "items") || []).map { |a| simplify_artist(a) }
+        render json: { artists: artists }
+      else
+        tracks = (results.dig("tracks", "items") || []).map { |t| simplify_track(t) }
+        render json: { tracks: tracks }
+      end
     end
 
     private
@@ -29,6 +35,16 @@ module Api
         uri: track["uri"],
         popularity: track["popularity"],
         preview_url: track["preview_url"]
+      }
+    end
+
+    def simplify_artist(artist)
+      {
+        id: artist["id"],
+        name: artist["name"],
+        images: artist["images"] || [],
+        genres: (artist["genres"] || []).first(3),
+        popularity: artist["popularity"]
       }
     end
   end

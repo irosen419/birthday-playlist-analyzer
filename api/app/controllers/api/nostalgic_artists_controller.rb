@@ -30,7 +30,11 @@ module Api
     private
 
     def artist_params
-      params.permit(:name, :era)
+      if params[:nostalgic_artist].present?
+        params.require(:nostalgic_artist).permit(:name, :era)
+      else
+        params.permit(:name, :era)
+      end
     end
   end
 end

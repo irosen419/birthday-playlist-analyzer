@@ -32,6 +32,14 @@ export default function Header() {
               <span className="hidden md:inline">Analysis</span>
               <span className="md:hidden">&#128200;</span>
             </Link>
+            <Link
+              to="/settings"
+              className="rounded-full px-3 py-2 text-sm font-semibold text-[#b3b3b3] no-underline transition-colors hover:text-white md:px-4"
+              title="Settings"
+            >
+              <span className="hidden md:inline">Settings</span>
+              <span className="md:hidden">&#9881;</span>
+            </Link>
           </nav>
 
           {user && (

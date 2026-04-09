@@ -4,6 +4,7 @@ export interface User {
   displayName: string;
   email: string;
   birthYear: number;
+  setupCompleted: boolean;
 }
 
 export interface Artist {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostalgicArtist } from '../../types';
 import {
@@ -6,6 +6,7 @@ import {
   createNostalgicArtist,
   deleteNostalgicArtist,
 } from '../../api/nostalgicArtists';
+import { searchArtists, type SpotifyArtist } from '../../api/search';
 
 type Era = NostalgicArtist['era'];
 
@@ -56,6 +57,48 @@ function EraGroup({
   onDelete: (id: number) => void;
 }) {
   const [inputValue, setInputValue] = useState('');
+  const [suggestions, setSuggestions] = useState<SpotifyArtist[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function handleInputChange(value: string) {
+    setInputValue(value);
+    clearTimeout(debounceRef.current);
+
+    if (value.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await searchArtists(value.trim(), 5);
+        setSuggestions(results);
+        setShowSuggestions(results.length > 0);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+  }
+
+  function selectArtist(artist: SpotifyArtist) {
+    onAdd(artist.name, config.era);
+    setInputValue('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +106,8 @@ function EraGroup({
     if (!trimmed) return;
     onAdd(trimmed, config.era);
     setInputValue('');
+    setSuggestions([]);
+    setShowSuggestions(false);
   }
 
   return (
@@ -80,22 +125,48 @@ function EraGroup({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Add artist"
-          className="flex-1 rounded-lg bg-[#282828] px-3 py-1.5 text-sm text-white outline-none placeholder:text-[#6a6a6a] focus:ring-1 focus:ring-[#1DB954]"
-        />
-        <button
-          type="submit"
-          disabled={!inputValue.trim()}
-          className="cursor-pointer rounded-lg bg-[#282828] px-4 py-1.5 text-sm font-semibold text-[#1DB954] transition-colors hover:bg-[#333] disabled:cursor-default disabled:text-[#6a6a6a]"
-        >
-          Add
-        </button>
-      </form>
+      <div ref={wrapperRef} className="relative">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            placeholder="Search for an artist"
+            className="flex-1 rounded-lg bg-[#282828] px-3 py-1.5 text-sm text-white outline-none placeholder:text-[#6a6a6a] focus:ring-1 focus:ring-[#1DB954]"
+          />
+        </form>
+
+        {showSuggestions && (
+          <div className="absolute z-10 mt-1 w-full rounded-lg bg-[#282828] py-1 shadow-lg">
+            {suggestions.map((artist) => (
+              <button
+                key={artist.id}
+                onClick={() => selectArtist(artist)}
+                className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-3 py-2 text-left transition-colors hover:bg-[#333]"
+              >
+                {artist.images[artist.images.length - 1]?.url ? (
+                  <img
+                    src={artist.images[artist.images.length - 1].url}
+                    alt={artist.name}
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-[#404040]" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-white">{artist.name}</p>
+                  {artist.genres.length > 0 && (
+                    <p className="truncate text-xs text-[#6a6a6a]">
+                      {artist.genres.join(', ')}
+                    </p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

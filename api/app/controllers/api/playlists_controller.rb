@@ -28,7 +28,10 @@ module Api
       data = params[:playlist].present? ? params[:playlist] : params
 
       ActiveRecord::Base.transaction do
-        @playlist.update!(name: data[:name]) if data[:name].present?
+        attrs = {}
+        attrs[:name] = data[:name] if data[:name].present?
+        attrs[:birth_year] = data[:birth_year] if data.key?(:birth_year)
+        @playlist.update!(attrs) if attrs.any?
         replace_tracks(data[:tracks]) if data[:tracks].present?
       end
 

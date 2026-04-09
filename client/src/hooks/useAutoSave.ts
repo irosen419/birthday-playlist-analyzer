@@ -8,7 +8,8 @@ const SAVED_INDICATOR_DURATION_MS = 2000;
 export function useAutoSave(
   playlistId: number | undefined,
   name: string,
-  tracks: PlaylistTrack[]
+  tracks: PlaylistTrack[],
+  birthYear?: number
 ) {
   const [isSaving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -29,7 +30,7 @@ export function useAutoSave(
     timerRef.current = setTimeout(async () => {
       setSaving(true);
       try {
-        await updatePlaylist(playlistId, { name, tracks });
+        await updatePlaylist(playlistId, { name, tracks, birthYear });
         setJustSaved(true);
         clearTimeout(savedTimerRef.current);
         savedTimerRef.current = setTimeout(
@@ -44,7 +45,7 @@ export function useAutoSave(
     }, DEBOUNCE_DELAY_MS);
 
     return () => clearTimeout(timerRef.current);
-  }, [playlistId, name, tracks]);
+  }, [playlistId, name, tracks, birthYear]);
 
   useEffect(() => {
     return () => clearTimeout(savedTimerRef.current);

@@ -94,11 +94,12 @@ export async function createPlaylist(params: {
 
 export async function updatePlaylist(
   id: number,
-  params: { name: string; tracks: PlaylistTrack[] }
+  params: { name: string; tracks: PlaylistTrack[]; birthYear?: number }
 ): Promise<Playlist> {
   const { data } = await apiClient.patch(`/api/playlists/${id}`, {
     playlist: {
       name: params.name,
+      birth_year: params.birthYear,
       tracks: params.tracks.map(serializeTrack),
     },
   });

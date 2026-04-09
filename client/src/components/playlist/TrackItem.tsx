@@ -28,8 +28,10 @@ export default function TrackItem({
     <div
       ref={provided.innerRef}
       {...provided.draggableProps}
-      className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-[#2a2a2a] ${
-        track.locked ? 'bg-[rgba(29,185,84,0.22)]' : ''
+      className={`group flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+        track.locked
+          ? 'bg-[rgba(29,185,84,0.22)] hover:bg-[rgba(29,185,84,0.32)]'
+          : 'hover:bg-[#2a2a2a]'
       }`}
     >
       {/* Drag handle */}
