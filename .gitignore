@@ -4,6 +4,8 @@ node_modules/
 # Environment variables
 .env
 .env.example
+.env*
+!.env*.example
 
 # OS files
 .DS_Store
@@ -21,3 +23,17 @@ npm-debug.log*
 
 # Claude
 .claude/
+
+# Rails
+api/tmp/
+api/log/
+api/storage/
+api/.env*
+api/config/master.key
+api/config/credentials/*.key
+
+# React build output
+client/dist/
+
+# Kamal
+api/.kamal/

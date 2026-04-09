@@ -1,149 +1,137 @@
 # Birthday Playlist Analyzer
 
-A Spotify API integration for analyzing your music history and generating the perfect birthday party playlist.
+A full-stack web application that analyzes your Spotify listening history and generates the perfect birthday party playlist. Built with a Rails 8 API backend and a React TypeScript frontend.
 
 ## Features
 
-- **OAuth Authentication** - Secure Spotify OAuth 2.0 flow with PKCE
-- **Music History Analysis** - Analyzes your top artists and tracks across all time ranges
-- **Audio Features Analysis** - Deep dive into tempo, energy, danceability, valence, and more
-- **Smart Playlist Generation** - Creates a party playlist using a 60/40 strategy:
-  - 60% from your personal favorites
-  - 40% discovery tracks from related/popular artists
+- **Spotify OAuth Authentication** -- Secure session-based authentication via Spotify OAuth 2.0
+- **Music History Analysis** -- Analyzes your top artists and tracks across multiple time ranges
+- **Smart Playlist Generation** -- Creates party playlists using a blend of your favorites, genre discoveries, and era-appropriate hits
+- **Nostalgic Artists** -- Specify artists from your formative years, high school, and college eras to influence playlist generation
+- **Drag-and-Drop Editor** -- Reorder, lock, add, and remove tracks with a full playlist editor
+- **Track Search** -- Search Spotify's catalog and add tracks directly to your playlist
+- **Publish to Spotify** -- Push your curated playlist directly to your Spotify account
+- **Integrated Playback** -- Preview tracks with the built-in Spotify Web Playback SDK player
+- **Auto-Save** -- All changes are automatically saved as you edit
+- **Responsive Design** -- Works on desktop and mobile devices
+
+## Tech Stack
+
+- **Backend:** Rails 8 (API mode) with PostgreSQL
+- **Frontend:** React 19 + TypeScript + Tailwind CSS 4
+- **State Management:** TanStack React Query
+- **Drag & Drop:** @hello-pangea/dnd
+- **HTTP Client:** Axios
+- **Routing:** React Router 7
+- **Bundler:** Vite 8
 
 ## Prerequisites
 
-- Node.js 18+ (for built-in fetch)
-- A Spotify Developer account
-- Spotify Client ID and Client Secret
+- Ruby 3.3+
+- Node.js 20.19+
+- PostgreSQL 16+
+- A [Spotify Developer](https://developer.spotify.com/dashboard) application
 
 ## Setup
 
-1. **Clone and install dependencies:**
-   ```bash
-   cd birthday-playlist-analyzer
-   npm install
-   ```
-
-2. **Create your `.env` file:**
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Add your Spotify Client Secret:**
-   - Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-   - Select your application (or create one)
-   - Copy your Client Secret
-   - Paste it into `.env`:
-     ```
-     SPOTIFY_CLIENT_SECRET=your_secret_here
-     ```
-
-4. **Ensure your Redirect URI is configured:**
-   - In the Spotify Dashboard, add `http://127.0.0.1:8888/callback` to your app's Redirect URIs
-
-## Usage
-
-### Step 1: Authenticate with Spotify
+### 1. Clone the repository
 
 ```bash
-npm run auth
+git clone <repo-url>
+cd birthday-playlist-analyzer
 ```
 
-This opens a browser window for Spotify authentication. After authorizing, tokens are automatically saved to your `.env` file.
+### 2. Spotify Developer Dashboard
 
-### Step 2: Analyze Your Music
+1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
+2. Create a new application (or select an existing one)
+3. Add `http://localhost:3000/auth/spotify/callback` to the **Redirect URIs**
+4. Note your **Client ID** and **Client Secret**
+
+### 3. API setup (Rails)
 
 ```bash
-npm run analyze
+cd api
+bundle install
+bin/rails db:create db:migrate
+
+# Configure credentials (add your Spotify client_id and client_secret)
+bin/rails credentials:edit
 ```
 
-This analyzes your listening history and displays:
-- Your top genres
-- Consistent favorite artists and tracks
-- Audio feature statistics (energy, danceability, valence, etc.)
-- Insights about your music taste
+Your credentials should include:
 
-### Step 3: Create Your Party Playlist
+```yaml
+spotify:
+  client_id: your_client_id
+  client_secret: your_client_secret
+```
+
+### 4. Client setup (React)
 
 ```bash
-npm run create-playlist
+cd client
+npm install
 ```
 
-Options:
-- `--name "Custom Name"` - Set a custom playlist name
-- `--dry-run` - Preview without creating on Spotify
+Create a `.env` file if you need to point to a non-default API URL:
 
-Example:
+```
+VITE_API_URL=http://localhost:3000
+```
+
+## Running the App
+
+Start both servers in separate terminals:
+
+**Terminal 1 -- Rails API (port 3000):**
+
 ```bash
-npm run create-playlist --name "My 30th Birthday Bash"
+cd api
+bin/rails server
 ```
 
-## Configuration
+**Terminal 2 -- Vite dev server (port 5173):**
 
-Edit `src/config.js` to customize:
-
-```javascript
-playlist: {
-  targetSongCount: 70,      // ~4 hours at 3.5 min average
-  minEnergy: 0.35,          // Minimum energy threshold
-  userTracksRatio: 0.6,     // 60% from your favorites
-  discoveryRatio: 0.4,      // 40% new discoveries
-  name: 'Birthday Party Playlist - April 19th',
-  isPublic: true,
-}
+```bash
+cd client
+npm run dev
 ```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## Project Structure
 
 ```
 birthday-playlist-analyzer/
-├── src/
-│   ├── auth/
-│   │   ├── oauth.js           # OAuth utilities (PKCE, token exchange)
-│   │   └── server.js          # Express server for OAuth callback
-│   ├── api/
-│   │   └── spotify-client.js  # Spotify API client wrapper
-│   ├── analysis/
-│   │   ├── top-items-analyzer.js     # Analyzes top artists/tracks
-│   │   └── audio-features-analyzer.js # Analyzes audio characteristics
-│   ├── playlist/
-│   │   └── playlist-generator.js     # Generates and creates playlists
-│   ├── utils/
-│   │   ├── token-storage.js   # Token persistence
-│   │   └── logger.js          # Colored console logging
-│   ├── config.js              # Central configuration
-│   ├── index.js               # Main entry point
-│   ├── analyze.js             # Analysis script
-│   └── create-playlist.js     # Playlist creation script
-├── .env.example
-├── .gitignore
-├── package.json
+├── api/                          # Rails 8 API
+│   ├── app/
+│   │   ├── controllers/          # API controllers
+│   │   ├── models/               # ActiveRecord models
+│   │   └── services/             # Service objects (Spotify client, playlist generator, etc.)
+│   ├── config/
+│   │   └── routes.rb             # API routes
+│   └── db/
+│       └── migrate/              # Database migrations
+│
+├── client/                       # React TypeScript frontend
+│   ├── src/
+│   │   ├── api/                  # API client and endpoint modules
+│   │   ├── components/
+│   │   │   ├── analysis/         # Music analysis views
+│   │   │   ├── auth/             # Login page
+│   │   │   ├── common/           # Shared components (LoadingSpinner, etc.)
+│   │   │   ├── layout/           # Header, AppLayout
+│   │   │   ├── player/           # Spotify Web Playback SDK player bar
+│   │   │   ├── playlist/         # Playlist editor, track list, nostalgic artists
+│   │   │   └── search/           # Track search
+│   │   ├── context/              # React context (Auth)
+│   │   ├── hooks/                # Custom hooks (auto-save, Spotify player)
+│   │   └── types/                # TypeScript type definitions
+│   └── vite.config.ts
+│
 └── README.md
 ```
-
-## API Scopes Used
-
-- `user-top-read` - Access to top artists and tracks
-- `user-read-recently-played` - Access to recently played tracks
-- `playlist-modify-public` - Create public playlists
-- `playlist-modify-private` - Create private playlists
-- `user-read-private` - Access to user profile
-
-## Troubleshooting
-
-**"No access token found"**
-- Run `npm run auth` to authenticate first
-
-**"Token expired"**
-- The app automatically refreshes tokens, but if issues persist, run `npm run auth` again
-
-**"Rate limited"**
-- The app handles rate limiting automatically with retry logic
-
-**Playlist is shorter than expected**
-- Some tracks may be filtered out due to the minimum energy threshold
-- Related artists may not have enough party-suitable tracks
 
 ## License
 
