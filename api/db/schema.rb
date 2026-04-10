@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_04_09_222223) do
+ActiveRecord::Schema[8.0].define(version: 2026_04_10_001201) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,6 +48,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_04_09_222223) do
     t.integer "birth_year"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "favorites_ratio", default: 0.3
+    t.float "discovery_ratio", default: 0.3
+    t.float "era_hits_ratio", default: 0.4
+    t.integer "target_song_count", default: 125
     t.index ["user_id"], name: "index_playlists_on_user_id"
   end
 

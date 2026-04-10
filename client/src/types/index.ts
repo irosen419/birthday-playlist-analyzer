@@ -48,6 +48,10 @@ export interface Playlist {
   spotifyPlaylistId?: string;
   publishedAt?: string;
   birthYear?: number;
+  favoritesRatio: number;
+  discoveryRatio: number;
+  eraHitsRatio: number;
+  targetSongCount: number;
   tracks: PlaylistTrack[];
   trackCount?: number;
   createdAt: string;

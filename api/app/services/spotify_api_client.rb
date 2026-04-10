@@ -18,8 +18,8 @@ class SpotifyApiClient
     get("/me/top/tracks", time_range: time_range, limit: limit)
   end
 
-  def search(query:, types: ["track"], limit: 20)
-    get("/search", q: query, type: types.join(","), limit: limit)
+  def search(query:, types: ["track"], limit: 20, offset: 0)
+    get("/search", q: query, type: types.join(","), limit: limit, offset: offset)
   end
 
   def get_recommendations(seed_genres: [], seed_artists: [], seed_tracks: [], **params)

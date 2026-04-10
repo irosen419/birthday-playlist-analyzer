@@ -31,6 +31,10 @@ module Api
         attrs = {}
         attrs[:name] = data[:name] if data[:name].present?
         attrs[:birth_year] = data[:birth_year] if data.key?(:birth_year)
+        attrs[:favorites_ratio] = data[:favorites_ratio].to_f if data.key?(:favorites_ratio)
+        attrs[:discovery_ratio] = data[:discovery_ratio].to_f if data.key?(:discovery_ratio)
+        attrs[:era_hits_ratio] = data[:era_hits_ratio].to_f if data.key?(:era_hits_ratio)
+        attrs[:target_song_count] = data[:target_song_count].to_i if data.key?(:target_song_count)
         @playlist.update!(attrs) if attrs.any?
         replace_tracks(data[:tracks]) if data[:tracks].present?
       end
@@ -46,7 +50,13 @@ module Api
     def generate
       birth_year = params[:birth_year]&.to_i || @playlist.effective_birth_year
       locked_track_ids = params[:locked_track_ids] || []
-      target_count = PlaylistGeneratorService::TARGET_SONG_COUNT - locked_track_ids.length
+      config = @playlist.generation_config
+
+      ratio_sum = config[:favorites_ratio] + config[:discovery_ratio] + config[:era_hits_ratio]
+      unless (ratio_sum - 1.0).abs <= 0.02
+        return render json: { error: "Ratios must sum to 100% (currently #{(ratio_sum * 100).round(0)}%)" }, status: :unprocessable_entity
+      end
+      target_count = config[:target_song_count] - locked_track_ids.length
 
       analyzer = TopItemsAnalyzer.new(spotify_client)
       analysis = analyzer.analyze
@@ -56,7 +66,10 @@ module Api
         analysis[:analysis],
         birth_year: birth_year,
         target_count: target_count,
-        exclude_track_ids: locked_track_ids
+        exclude_track_ids: locked_track_ids,
+        favorites_ratio: config[:favorites_ratio],
+        discovery_ratio: config[:discovery_ratio],
+        era_hits_ratio: config[:era_hits_ratio]
       )
 
       render json: result
@@ -88,17 +101,24 @@ module Api
     end
 
     def create_params
+      permitted = [:name, :birth_year, :favorites_ratio, :discovery_ratio, :era_hits_ratio, :target_song_count]
       if params[:playlist].present?
-        params.require(:playlist).permit(:name, :birth_year)
+        params.require(:playlist).permit(*permitted)
       else
-        params.permit(:name, :birth_year)
+        params.permit(*permitted)
       end
     end
 
     def playlist_summary(playlist)
-      playlist.as_json(only: [:id, :name, :description, :birth_year, :spotify_playlist_id, :published_at, :created_at, :updated_at])
+      playlist.as_json(only: SERIALIZABLE_FIELDS)
         .merge("track_count" => playlist.playlist_tracks.size)
     end
+
+    SERIALIZABLE_FIELDS = [
+      :id, :name, :description, :birth_year, :spotify_playlist_id, :published_at,
+      :favorites_ratio, :discovery_ratio, :era_hits_ratio, :target_song_count,
+      :created_at, :updated_at
+    ].freeze
 
     def playlist_detail(playlist)
       tracks = playlist.playlist_tracks.includes(:track).order(:position).map do |pt|
@@ -122,7 +142,7 @@ module Api
         }
       end
 
-      playlist.as_json(only: [:id, :name, :description, :birth_year, :spotify_playlist_id, :published_at, :created_at, :updated_at])
+      playlist.as_json(only: SERIALIZABLE_FIELDS)
         .merge("tracks" => tracks)
     end
 

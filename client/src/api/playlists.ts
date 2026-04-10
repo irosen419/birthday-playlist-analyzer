@@ -62,6 +62,10 @@ function deserializePlaylist(raw: Record<string, unknown>): Playlist {
       | undefined,
     publishedAt: (raw.published_at || raw.publishedAt) as string | undefined,
     birthYear: (raw.birth_year || raw.birthYear) as number | undefined,
+    favoritesRatio: (raw.favorites_ratio ?? raw.favoritesRatio ?? 0.3) as number,
+    discoveryRatio: (raw.discovery_ratio ?? raw.discoveryRatio ?? 0.3) as number,
+    eraHitsRatio: (raw.era_hits_ratio ?? raw.eraHitsRatio ?? 0.4) as number,
+    targetSongCount: (raw.target_song_count ?? raw.targetSongCount ?? 125) as number,
     tracks,
     trackCount: (raw.track_count || raw.trackCount || tracks.length) as number,
     createdAt: (raw.created_at || raw.createdAt) as string,
@@ -82,11 +86,19 @@ export async function getPlaylist(id: number): Promise<Playlist> {
 export async function createPlaylist(params: {
   name: string;
   birthYear?: number;
+  favoritesRatio?: number;
+  discoveryRatio?: number;
+  eraHitsRatio?: number;
+  targetSongCount?: number;
 }): Promise<Playlist> {
   const { data } = await apiClient.post('/api/playlists', {
     playlist: {
       name: params.name,
       birth_year: params.birthYear,
+      favorites_ratio: params.favoritesRatio,
+      discovery_ratio: params.discoveryRatio,
+      era_hits_ratio: params.eraHitsRatio,
+      target_song_count: params.targetSongCount,
     },
   });
   return deserializePlaylist(data);
@@ -94,12 +106,24 @@ export async function createPlaylist(params: {
 
 export async function updatePlaylist(
   id: number,
-  params: { name: string; tracks: PlaylistTrack[]; birthYear?: number }
+  params: {
+    name: string;
+    tracks: PlaylistTrack[];
+    birthYear?: number;
+    favoritesRatio?: number;
+    discoveryRatio?: number;
+    eraHitsRatio?: number;
+    targetSongCount?: number;
+  }
 ): Promise<Playlist> {
   const { data } = await apiClient.patch(`/api/playlists/${id}`, {
     playlist: {
       name: params.name,
       birth_year: params.birthYear,
+      favorites_ratio: params.favoritesRatio,
+      discovery_ratio: params.discoveryRatio,
+      era_hits_ratio: params.eraHitsRatio,
+      target_song_count: params.targetSongCount,
       tracks: params.tracks.map(serializeTrack),
     },
   });

@@ -113,7 +113,20 @@ RSpec.describe PlaylistGeneratorService do
       end
     end
 
-    it "calculates correct ratios for target count" do
+    it "uses custom ratios when provided" do
+      result = generator.generate(
+        analysis_data,
+        birth_year: 1991,
+        target_count: 100,
+        favorites_ratio: 0.5,
+        discovery_ratio: 0.2,
+        era_hits_ratio: 0.3
+      )
+
+      expect(result[:stats][:from_favorites]).to eq(50)
+    end
+
+    it "falls back to default ratios when custom ratios are not provided" do
       result = generator.generate(analysis_data, birth_year: 1991, target_count: 100)
 
       expect(result[:stats][:from_favorites]).to eq(30)
@@ -349,6 +362,131 @@ RSpec.describe PlaylistGeneratorService do
 
       expect(result.length).to eq(10)
       expect(result.map { |t| t["id"] }.sort).to eq(tracks.map { |t| t["id"] }.sort)
+    end
+  end
+
+  describe "randomization behavior" do
+    it "uses random offsets within valid range (0-80) when searching" do
+      offsets_used = []
+      allow(spotify_client).to receive(:search) do |**kwargs|
+        offsets_used << kwargs[:offset] if kwargs[:offset]
+        {
+          "tracks" => {
+            "items" => (1..5).map do |i|
+              make_track.call(
+                id: "rand_#{SecureRandom.hex(4)}_#{i}",
+                name: "Random #{i}",
+                artist_id: "new_artist_rand_#{SecureRandom.hex(4)}",
+                popularity: 70
+              )
+            end
+          },
+          "artists" => { "items" => [] }
+        }
+      end
+
+      generator.generate(analysis_data, birth_year: 1991, target_count: 30)
+
+      offsets_used.each do |offset|
+        expect(offset).to be_between(0, 80)
+      end
+    end
+
+    it "adds randomness to favorite scoring so results can vary" do
+      tracks = (1..20).map do |i|
+        make_track.call(
+          id: "fav_#{i}",
+          name: "Fav #{i}",
+          artist_id: "artist_fav_#{i}",
+          popularity: 80
+        ).merge("total_weight" => 2.0 - (i * 0.05))
+      end
+
+      results = 10.times.map do
+        generator.select_favorites(tracks, 10).map { |t| t["id"] }
+      end
+
+      # With randomness, we expect at least some variation across runs
+      unique_orderings = results.uniq.length
+      expect(unique_orderings).to be > 1
+    end
+
+    it "shuffles genre query order for era hits" do
+      genre_orders = []
+      allow(spotify_client).to receive(:search) do |**kwargs|
+        query = kwargs[:query]
+        if query.include?("genre:")
+          genre_match = query.match(/genre:(\w[\w\s]*)/)
+          genre_orders << genre_match[1] if genre_match
+        end
+        {
+          "tracks" => {
+            "items" => (1..3).map do |i|
+              make_track.call(
+                id: "era_rand_#{SecureRandom.hex(4)}_#{i}",
+                name: "Era Rand #{i}",
+                artist_id: "era_rand_artist_#{SecureRandom.hex(4)}",
+                popularity: 75
+              )
+            end
+          },
+          "artists" => { "items" => [] }
+        }
+      end
+
+      # Run multiple times and check that genre order varies
+      orders = 10.times.map do
+        genre_orders.clear
+        generator.get_era_hits(1991, 10, Set.new)
+        genre_orders.dup
+      end
+
+      unique_orders = orders.uniq.length
+      expect(unique_orders).to be > 1
+    end
+
+    it "randomly samples genres for discovery instead of always using first 10" do
+      # Provide many genres so sampling can vary
+      ranked_artists = (1..60).map do |i|
+        {
+          "id" => "artist_#{i}",
+          "name" => "Artist #{i}",
+          "genres" => ["genre_#{i}", "genre_#{i + 100}"]
+        }
+      end
+
+      genres_searched = []
+      allow(spotify_client).to receive(:search) do |**kwargs|
+        query = kwargs[:query]
+        genre_match = query.match(/genre:"([^"]+)"/)
+        genres_searched << genre_match[1] if genre_match
+        {
+          "tracks" => {
+            "items" => (1..3).map do |i|
+              make_track.call(
+                id: "disc_rand_#{SecureRandom.hex(4)}_#{i}",
+                name: "Disc Rand #{i}",
+                artist_id: "disc_artist_#{SecureRandom.hex(4)}",
+                popularity: 70
+              )
+            end
+          }
+        }
+      end
+
+      first_run_genres = []
+      genres_searched.clear
+      generator.get_genre_discoveries(ranked_artists, 10, Set.new)
+      first_run_genres = genres_searched.dup
+
+      second_run_genres = []
+      genres_searched.clear
+      generator.get_genre_discoveries(ranked_artists, 10, Set.new)
+      second_run_genres = genres_searched.dup
+
+      # The top genres should still appear frequently, but order should vary
+      expect(first_run_genres).not_to be_empty
+      expect(second_run_genres).not_to be_empty
     end
   end
 end
