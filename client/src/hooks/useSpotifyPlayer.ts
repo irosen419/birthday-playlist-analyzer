@@ -115,8 +115,15 @@ export function useSpotifyPlayer() {
 
   const playTrack = useCallback(
     async (uri: string) => {
-      if (!deviceId) return;
-      await play({ device_id: deviceId, uris: [uri] });
+      if (!deviceId) {
+        console.warn('Player not ready — no device ID');
+        return;
+      }
+      try {
+        await play({ device_id: deviceId, uris: [uri] });
+      } catch (err) {
+        console.error('Play failed:', err);
+      }
     },
     [deviceId]
   );

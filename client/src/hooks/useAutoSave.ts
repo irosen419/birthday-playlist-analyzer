@@ -5,11 +5,19 @@ import { updatePlaylist } from '../api/playlists';
 const DEBOUNCE_DELAY_MS = 500;
 const SAVED_INDICATOR_DURATION_MS = 2000;
 
+export interface GenerationConfig {
+  favoritesRatio: number;
+  discoveryRatio: number;
+  eraHitsRatio: number;
+  targetSongCount: number;
+}
+
 export function useAutoSave(
   playlistId: number | undefined,
   name: string,
   tracks: PlaylistTrack[],
-  birthYear?: number
+  birthYear?: number,
+  generationConfig?: GenerationConfig
 ) {
   const [isSaving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -30,7 +38,12 @@ export function useAutoSave(
     timerRef.current = setTimeout(async () => {
       setSaving(true);
       try {
-        await updatePlaylist(playlistId, { name, tracks, birthYear });
+        await updatePlaylist(playlistId, {
+          name,
+          tracks,
+          birthYear,
+          ...generationConfig,
+        });
         setJustSaved(true);
         clearTimeout(savedTimerRef.current);
         savedTimerRef.current = setTimeout(
@@ -45,7 +58,7 @@ export function useAutoSave(
     }, DEBOUNCE_DELAY_MS);
 
     return () => clearTimeout(timerRef.current);
-  }, [playlistId, name, tracks, birthYear]);
+  }, [playlistId, name, tracks, birthYear, generationConfig]);
 
   useEffect(() => {
     return () => clearTimeout(savedTimerRef.current);

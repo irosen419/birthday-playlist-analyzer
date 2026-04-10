@@ -7,6 +7,7 @@ interface RegenerateButtonProps {
   onRegenerate: () => void;
   onLockAll: () => void;
   onUnlockAll: () => void;
+  onShuffle: () => void;
 }
 
 export default function RegenerateButton({
@@ -16,6 +17,7 @@ export default function RegenerateButton({
   onRegenerate,
   onLockAll,
   onUnlockAll,
+  onShuffle,
 }: RegenerateButtonProps) {
   const allLocked = tracks.length > 0 && lockedTrackIds.size === tracks.length;
   const noneLocked = lockedTrackIds.size === 0;
@@ -49,6 +51,17 @@ export default function RegenerateButton({
       >
         {isGenerating ? 'Generating...' : 'Regenerate'}
       </button>
+
+      {tracks.length > 1 && (
+        <button
+          onClick={onShuffle}
+          disabled={allLocked}
+          className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-[#b3b3b3] transition-colors hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          title={allLocked ? 'Unlock some tracks to shuffle' : 'Shuffle track order'}
+        >
+          Shuffle
+        </button>
+      )}
 
       {tracks.length > 0 && (
         <button

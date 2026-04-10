@@ -1,33 +1,41 @@
 class PlaylistGeneratorService
-  TARGET_SONG_COUNT = 125
-  FAVORITES_RATIO = 0.3
-  GENRE_DISCOVERY_RATIO = 0.3
+  DEFAULT_TARGET_SONG_COUNT = 125
+  DEFAULT_FAVORITES_RATIO = 0.3
+  DEFAULT_DISCOVERY_RATIO = 0.3
   MIN_POPULARITY = 60
   MAX_PER_ARTIST = 3
   SEARCH_GENRES = ["pop", "rock", "hip hop", "r&b"].freeze
+  MAX_SEARCH_OFFSET = 80
+  SCORE_JITTER_RANGE = 0.15
+  GENRE_SAMPLE_SIZE = 10
 
   def initialize(user, spotify_client)
     @user = user
     @client = spotify_client
   end
 
-  def generate(analysis_data, birth_year:, target_count: TARGET_SONG_COUNT, exclude_track_ids: [])
-    favorites_count = (target_count * FAVORITES_RATIO).floor
-    genre_discovery_count = (target_count * GENRE_DISCOVERY_RATIO).floor
+  def generate(analysis_data, birth_year:, target_count: DEFAULT_TARGET_SONG_COUNT,
+               exclude_track_ids: [],
+               favorites_ratio: DEFAULT_FAVORITES_RATIO,
+               discovery_ratio: DEFAULT_DISCOVERY_RATIO,
+               era_hits_ratio: nil)
+    favorites_count = (target_count * favorites_ratio).floor
+    genre_discovery_count = (target_count * discovery_ratio).floor
     era_hits_count = target_count - favorites_count - genre_discovery_count
 
     all_track_ids = Set.new(exclude_track_ids)
+    @seen_signatures = Set.new
 
     favorites = select_favorites(analysis_data[:tracks][:ranked_tracks], favorites_count, all_track_ids)
-    favorites.each { |t| all_track_ids.add(t["id"]) }
+    favorites.each { |t| mark_seen(t, all_track_ids) }
 
     genre_discoveries = get_genre_discoveries(
       analysis_data[:artists][:ranked_artists], genre_discovery_count, all_track_ids
     )
-    genre_discoveries.each { |t| all_track_ids.add(t["id"]) }
+    genre_discoveries.each { |t| mark_seen(t, all_track_ids) }
 
     era_hits = get_era_hits(birth_year, era_hits_count, all_track_ids)
-    era_hits.each { |t| all_track_ids.add(t["id"]) }
+    era_hits.each { |t| mark_seen(t, all_track_ids) }
 
     all_tracks = intelligent_shuffle(favorites, genre_discoveries, era_hits)
 
@@ -49,8 +57,9 @@ class PlaylistGeneratorService
   def select_favorites(ranked_tracks, target_count, exclude_ids = Set.new)
     scored_tracks = ranked_tracks.reject { |t| exclude_ids.include?(t["id"]) }.map do |track|
       popularity = (track["popularity"] || 50) / 100.0
-      score = track["total_weight"] * 0.8 + popularity * 0.2
-      track.merge("score" => score)
+      base_score = track["total_weight"] * 0.8 + popularity * 0.2
+      jitter = rand * SCORE_JITTER_RANGE - (SCORE_JITTER_RANGE / 2.0)
+      track.merge("score" => base_score + jitter)
     end.sort_by { |t| -t["score"] }
 
     selected = []
@@ -77,10 +86,13 @@ class PlaylistGeneratorService
     user_genres = EraCalculator.extract_genres(ranked_artists, 50)
     all_genres = EraCalculator.expand_genres(user_genres)
 
-    all_genres.first(10).each do |genre|
+    sampled_genres = weighted_sample(all_genres, GENRE_SAMPLE_SIZE)
+
+    sampled_genres.each do |genre|
       break if discoveries.length >= target_count
 
-      search_results = safe_search("genre:\"#{genre}\"")
+      offset = rand(0..MAX_SEARCH_OFFSET)
+      search_results = safe_search("genre:\"#{genre}\"", offset: offset)
       eligible = filter_eligible_tracks(
         search_results, seen_track_ids, top_50_artist_ids
       ).first(3)
@@ -88,7 +100,7 @@ class PlaylistGeneratorService
       eligible.each do |track|
         break if discoveries.length >= target_count
         discoveries << track.merge("source" => "genre_discovery", "discovery_genre" => genre)
-        seen_track_ids.add(track["id"])
+        mark_seen(track, seen_track_ids)
       end
     end
 
@@ -110,7 +122,7 @@ class PlaylistGeneratorService
       era_tracks = search_era_hits(era, era_target, seen_track_ids)
       era_tracks.each do |track|
         era_hits << track
-        seen_track_ids.add(track["id"])
+        mark_seen(track, seen_track_ids)
       end
     end
 
@@ -172,23 +184,27 @@ class PlaylistGeneratorService
 
     return tracks if tracks.length >= target_count
 
-    SEARCH_GENRES.each do |genre|
+    shuffled_genres = SEARCH_GENRES.shuffle
+
+    shuffled_genres.each do |genre|
       break if tracks.length >= target_count
 
+      offset = rand(0..MAX_SEARCH_OFFSET)
       query = "year:#{era[:year_range]} genre:#{genre}"
-      search_results = safe_search(query)
+      search_results = safe_search(query, offset: offset)
       remaining = target_count - tracks.length
-      per_genre = (remaining.to_f / (SEARCH_GENRES.length)).ceil
+      per_genre = (remaining.to_f / (shuffled_genres.length)).ceil
 
       eligible = search_results
         .reject { |t| seen_track_ids.include?(t["id"]) }
+        .reject { |t| duplicate_signature?(t) }
         .select { |t| (t["popularity"] || 0) >= MIN_POPULARITY }
         .first(per_genre)
 
       eligible.each do |track|
         break if tracks.length >= target_count
         tracks << track.merge("source" => "era_hit", "era" => era[:name])
-        seen_track_ids.add(track["id"])
+        mark_seen(track, seen_track_ids)
       end
     end
 
@@ -209,6 +225,7 @@ class PlaylistGeneratorService
       top_tracks = @client.artist_top_tracks(artist_id: artist["id"])
       eligible = (top_tracks["tracks"] || [])
         .reject { |t| seen_track_ids.include?(t["id"]) }
+        .reject { |t| duplicate_signature?(t) }
         .select { |t| (t["popularity"] || 0) >= MIN_POPULARITY }
         .first(2)
 
@@ -220,15 +237,15 @@ class PlaylistGeneratorService
           "nostalgic" => true,
           "nostalgic_artist" => nostalgic_artist.name
         )
-        seen_track_ids.add(track["id"])
+        mark_seen(track, seen_track_ids)
       end
     end
 
     tracks
   end
 
-  def safe_search(query)
-    result = @client.search(query: query, types: ["track"], limit: 20)
+  def safe_search(query, offset: 0)
+    result = @client.search(query: query, types: ["track"], limit: 20, offset: offset)
     result.dig("tracks", "items") || []
   rescue SpotifyApiError
     []
@@ -237,8 +254,24 @@ class PlaylistGeneratorService
   def filter_eligible_tracks(tracks, seen_track_ids, top_50_artist_ids)
     tracks
       .reject { |t| seen_track_ids.include?(t["id"]) }
+      .reject { |t| duplicate_signature?(t) }
       .select { |t| (t["popularity"] || 0) >= MIN_POPULARITY }
       .reject { |t| top_50_artist_ids.include?(t.dig("artists", 0, "id")) }
+  end
+
+  def track_signature(track)
+    name = (track["name"] || "").downcase.gsub(/\s*\(.*?\)\s*/, "").strip
+    artist = (track.dig("artists", 0, "name") || "").downcase.strip
+    "#{name}|#{artist}"
+  end
+
+  def duplicate_signature?(track)
+    @seen_signatures&.include?(track_signature(track))
+  end
+
+  def mark_seen(track, seen_track_ids)
+    seen_track_ids.add(track["id"])
+    @seen_signatures&.add(track_signature(track))
   end
 
   def fill_with_recommendations(discoveries, target_count, seen_track_ids, top_50_artist_ids, all_genres)
@@ -264,5 +297,17 @@ class PlaylistGeneratorService
       discoveries << track.merge("source" => "genre_recommendation")
       seen_track_ids.add(track["id"])
     end
+  end
+
+  def weighted_sample(items, count)
+    return items if items.length <= count
+
+    weighted = items.each_with_index.map do |item, index|
+      weight = 1.0 / (index + 1)
+      random_key = rand ** (1.0 / weight)
+      [item, random_key]
+    end
+
+    weighted.sort_by { |_, key| -key }.first(count).map(&:first)
   end
 end

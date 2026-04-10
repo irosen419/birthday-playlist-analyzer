@@ -57,7 +57,7 @@ RSpec.describe SpotifyApiClient do
   describe "#search" do
     it "searches with query and type parameters" do
       stub_request(:get, "#{base_url}/search")
-        .with(query: { q: "genre:\"indie rock\"", type: "track", limit: "20" })
+        .with(query: { q: "genre:\"indie rock\"", type: "track", limit: "20", offset: "0" })
         .to_return(status: 200, body: { tracks: { items: [] } }.to_json)
 
       result = client.search(query: "genre:\"indie rock\"")
@@ -67,10 +67,26 @@ RSpec.describe SpotifyApiClient do
 
     it "supports multiple types" do
       stub_request(:get, "#{base_url}/search")
-        .with(query: { q: "test", type: "track,artist", limit: "5" })
+        .with(query: { q: "test", type: "track,artist", limit: "5", offset: "0" })
         .to_return(status: 200, body: { tracks: { items: [] }, artists: { items: [] } }.to_json)
 
       client.search(query: "test", types: ["track", "artist"], limit: 5)
+    end
+
+    it "passes offset parameter to Spotify" do
+      stub_request(:get, "#{base_url}/search")
+        .with(query: { q: "test", type: "track", limit: "20", offset: "42" })
+        .to_return(status: 200, body: { tracks: { items: [] } }.to_json)
+
+      client.search(query: "test", offset: 42)
+    end
+
+    it "defaults offset to 0" do
+      stub_request(:get, "#{base_url}/search")
+        .with(query: hash_including("offset" => "0"))
+        .to_return(status: 200, body: { tracks: { items: [] } }.to_json)
+
+      client.search(query: "anything")
     end
   end
 

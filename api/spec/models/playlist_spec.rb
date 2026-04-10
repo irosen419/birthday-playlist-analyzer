@@ -40,6 +40,65 @@ RSpec.describe Playlist, type: :model do
     end
   end
 
+  describe '#generation_config' do
+    it 'returns a hash of generation configuration values' do
+      playlist = build(:playlist, favorites_ratio: 0.4, discovery_ratio: 0.3, era_hits_ratio: 0.3, target_song_count: 100)
+
+      config = playlist.generation_config
+
+      expect(config).to eq({
+        favorites_ratio: 0.4,
+        discovery_ratio: 0.3,
+        era_hits_ratio: 0.3,
+        target_song_count: 100
+      })
+    end
+
+    it 'uses default values when not explicitly set' do
+      playlist = build(:playlist)
+
+      config = playlist.generation_config
+
+      expect(config[:favorites_ratio]).to eq(0.3)
+      expect(config[:discovery_ratio]).to eq(0.3)
+      expect(config[:era_hits_ratio]).to eq(0.4)
+      expect(config[:target_song_count]).to eq(125)
+    end
+  end
+
+  describe 'ratio validations' do
+    it 'is valid when ratios sum to 1.0' do
+      playlist = build(:playlist, favorites_ratio: 0.3, discovery_ratio: 0.3, era_hits_ratio: 0.4)
+
+      expect(playlist).to be_valid
+    end
+
+    it 'is valid with floating point tolerance' do
+      playlist = build(:playlist, favorites_ratio: 0.33, discovery_ratio: 0.33, era_hits_ratio: 0.34)
+
+      expect(playlist).to be_valid
+    end
+
+    it 'is invalid when ratios do not sum to 1.0' do
+      playlist = build(:playlist, favorites_ratio: 0.5, discovery_ratio: 0.5, era_hits_ratio: 0.5)
+
+      expect(playlist).not_to be_valid
+      expect(playlist.errors[:base]).to include(a_string_matching(/must sum to 100%/))
+    end
+
+    it 'validates target_song_count is within range' do
+      playlist = build(:playlist, target_song_count: 10)
+
+      expect(playlist).not_to be_valid
+    end
+
+    it 'accepts target_song_count within valid range' do
+      playlist = build(:playlist, target_song_count: 150)
+
+      expect(playlist).to be_valid
+    end
+  end
+
   describe 'playlist_tracks ordering' do
     it 'orders playlist_tracks by position' do
       playlist = create(:playlist)

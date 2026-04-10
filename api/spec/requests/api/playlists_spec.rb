@@ -78,6 +78,22 @@ RSpec.describe "Api::Playlists", type: :request do
 
       expect(response).to have_http_status(:unprocessable_entity)
     end
+
+    it "accepts generation config params" do
+      post "/api/playlists", params: {
+        name: "Custom Config",
+        birth_year: 1991,
+        favorites_ratio: 0.4,
+        discovery_ratio: 0.3,
+        era_hits_ratio: 0.3,
+        target_song_count: 100
+      }
+
+      expect(response).to have_http_status(:created)
+      body = response.parsed_body
+      expect(body["favorites_ratio"]).to eq(0.4)
+      expect(body["target_song_count"]).to eq(100)
+    end
   end
 
   describe "PATCH /api/playlists/:id" do
@@ -159,6 +175,22 @@ RSpec.describe "Api::Playlists", type: :request do
       }.to change(Track, :count).by(1)
 
       expect(Track.find_by(spotify_id: "upsert_test").name).to eq("Upsert Song")
+    end
+
+    it "updates generation config params" do
+      patch "/api/playlists/#{playlist.id}", params: {
+        favorites_ratio: 0.5,
+        discovery_ratio: 0.2,
+        era_hits_ratio: 0.3,
+        target_song_count: 80
+      }
+
+      expect(response).to have_http_status(:ok)
+      playlist.reload
+      expect(playlist.favorites_ratio).to eq(0.5)
+      expect(playlist.discovery_ratio).to eq(0.2)
+      expect(playlist.era_hits_ratio).to eq(0.3)
+      expect(playlist.target_song_count).to eq(80)
     end
 
     it "returns 404 for another user's playlist" do
@@ -252,6 +284,24 @@ RSpec.describe "Api::Playlists", type: :request do
 
       post "/api/playlists/#{playlist.id}/generate",
         params: { birth_year: 1991, locked_track_ids: %w[locked1 locked2] },
+        as: :json
+    end
+
+    it "uses the playlist's stored config for generation ratios" do
+      playlist.update!(favorites_ratio: 0.5, discovery_ratio: 0.2, era_hits_ratio: 0.3, target_song_count: 80)
+
+      expect_any_instance_of(PlaylistGeneratorService).to receive(:generate).with(
+        anything,
+        hash_including(
+          favorites_ratio: 0.5,
+          discovery_ratio: 0.2,
+          era_hits_ratio: 0.3,
+          target_count: 80
+        )
+      ).and_return(generate_result)
+
+      post "/api/playlists/#{playlist.id}/generate",
+        params: { birth_year: 1991 },
         as: :json
     end
   end
