@@ -22,12 +22,6 @@ function formatDuration(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function spotifyTrackUrl(id: string, uri: string): string {
-  if (id) return `https://open.spotify.com/track/${id}`;
-  const parsed = uri.split(':').pop();
-  return `https://open.spotify.com/track/${parsed ?? ''}`;
-}
-
 export default function TrackItem({
   track,
   index,
@@ -69,7 +63,7 @@ export default function TrackItem({
   }
 
   function handleRowClickMobile() {
-    onOpenPopover(isPopoverOpen ? null : track.id);
+    onOpenPopover(track.id);
   }
 
   return (
@@ -151,7 +145,7 @@ export default function TrackItem({
               onClick={(e) => e.stopPropagation()}
             >
               <a
-                href={spotifyTrackUrl(track.id, track.uri)}
+                href={`https://open.spotify.com/track/${track.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => onOpenPopover(null)}
@@ -203,7 +197,7 @@ export default function TrackItem({
       <MoveTrackModal
         isOpen={isMoveModalOpen}
         onClose={() => setIsMoveModalOpen(false)}
-        currentPosition={index}
+        currentIndex={index}
         totalTracks={totalTracks}
         trackName={track.name}
         onMove={(newPosition) => onMove(track.id, newPosition)}

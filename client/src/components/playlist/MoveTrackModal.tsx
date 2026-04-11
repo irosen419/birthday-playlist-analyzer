@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 interface MoveTrackModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPosition: number;
+  currentIndex: number;
   totalTracks: number;
   trackName: string;
   onMove: (newPosition: number) => void;
@@ -20,20 +20,20 @@ function clampPosition(value: number, totalTracks: number): number {
 export default function MoveTrackModal({
   isOpen,
   onClose,
-  currentPosition,
+  currentIndex,
   totalTracks,
   trackName,
   onMove,
 }: MoveTrackModalProps) {
   const [positionInput, setPositionInput] = useState<string>(
-    String(currentPosition + 1)
+    String(currentIndex + 1)
   );
 
   useEffect(() => {
     if (isOpen) {
-      setPositionInput(String(currentPosition + 1));
+      setPositionInput(String(currentIndex + 1));
     }
-  }, [isOpen, currentPosition]);
+  }, [isOpen, currentIndex]);
 
   useEffect(() => {
     if (!isOpen) return;
