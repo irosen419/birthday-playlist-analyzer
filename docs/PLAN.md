@@ -34,7 +34,7 @@ birthday-playlist-analyzer/
   src/                    # Existing Node.js app (DO NOT delete during development)
   api/                    # NEW: Rails 8 API-only backend
   client/                 # NEW: React + TypeScript + Vite frontend
-  PLAN.md                 # This file
+  docs/PLAN.md            # This file
 ```
 
 ### Stack

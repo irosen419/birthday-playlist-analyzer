@@ -53,6 +53,38 @@ RSpec.describe "Api::Users", type: :request do
         expect(response.parsed_body["error"]).to eq("Unauthorized")
       end
     end
+
+    context "with bearer token authentication" do
+      it "returns 200 and user data when given a valid Bearer token" do
+        get "/api/me", headers: auth_headers(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["id"]).to eq(user.id)
+        expect(response.parsed_body["email"]).to eq("dj@test.com")
+      end
+
+      it "returns 401 when no Authorization header is present" do
+        get "/api/me"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it "returns 401 when the Bearer token is invalid" do
+        get "/api/me", headers: { "Authorization" => "Bearer not-a-valid-token" }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it "returns 401 when the Bearer token is expired" do
+        headers = auth_headers(user)
+
+        travel_to(AuthTokenService::EXPIRY.from_now + 1.minute) do
+          get "/api/me", headers: headers
+        end
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
   end
 
   describe "PATCH /api/me" do

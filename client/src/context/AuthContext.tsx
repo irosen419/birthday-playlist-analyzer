@@ -7,14 +7,15 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '../types';
-import { getMe, logout as logoutApi } from '../api/auth';
+import { getMe } from '../api/auth';
 import { API_URL } from '../api/client';
+import { clearAuthToken, setAuthToken } from '../lib/auth';
 
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   login: () => void;
-  logout: () => Promise<void>;
+  logout: () => void;
   setUser: (user: User) => void;
 }
 
@@ -26,6 +27,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const hash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    const params = new URLSearchParams(hash);
+    const tokenFromUrl = params.get('auth_token');
+
+    if (tokenFromUrl) {
+      setAuthToken(tokenFromUrl);
+      window.history.replaceState(
+        {},
+        '',
+        window.location.pathname + window.location.search
+      );
+    }
+
     getMe()
       .then(setUser)
       .catch(() => setUser(null))
@@ -36,8 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = `${API_URL}/auth/spotify`;
   }
 
-  async function logout() {
-    await logoutApi();
+  function logout() {
+    clearAuthToken();
     setUser(null);
     navigate('/');
   }

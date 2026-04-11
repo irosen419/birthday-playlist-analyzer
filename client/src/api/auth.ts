@@ -29,7 +29,3 @@ export async function updateMe(params: {
   });
   return deserializeUser(data);
 }
-
-export async function logout(): Promise<void> {
-  await apiClient.delete('/auth/logout');
-}

@@ -3,7 +3,6 @@ Rails.application.routes.draw do
 
   get  "auth/spotify",          to: "auth#spotify"
   get  "auth/spotify/callback", to: "auth#callback"
-  delete "auth/logout",         to: "auth#logout"
 
   namespace :api do
     get "me", to: "users#me"

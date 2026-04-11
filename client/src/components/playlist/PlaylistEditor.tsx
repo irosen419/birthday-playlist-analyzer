@@ -48,6 +48,8 @@ export default function PlaylistEditor() {
     targetSongCount: 125,
   });
 
+  // Only hydrate local state when navigating to a different playlist,
+  // not on every refetch (which would clobber unsaved state).
   useEffect(() => {
     if (!playlist) return;
     setName(playlist.name);
@@ -61,7 +63,8 @@ export default function PlaylistEditor() {
       eraHitsRatio: playlist.eraHitsRatio,
       targetSongCount: playlist.targetSongCount,
     });
-  }, [playlist]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playlist?.id]);
 
 
   const [birthYearInput, setBirthYearInput] = useState<string>(
@@ -111,7 +114,6 @@ export default function PlaylistEditor() {
       }
 
       setTracks(recalculatePositions(merged));
-      queryClient.invalidateQueries({ queryKey: ['playlist', playlistId] });
     },
   });
 
@@ -277,6 +279,7 @@ export default function PlaylistEditor() {
         onPlay={playTrack}
         onToggleLock={handleToggleLock}
         onRemove={handleRemove}
+        isGenerating={generateMutation.isPending}
       />
     </div>
   );
