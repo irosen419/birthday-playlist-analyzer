@@ -19,7 +19,8 @@ _(empty — add away)_
 
 ## UX polish
 
-_(empty)_
+### Sticky scroll to top/bottom button
+A floating button on the playlist editor that jumps to the top or bottom of the track list. With 125+ tracks and a locked-tracks-at-top layout, scrolling through the full list to reach the end (or back) is tedious.
 
 ## Developer experience
 
