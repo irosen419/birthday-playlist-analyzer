@@ -8,7 +8,7 @@ Read this first. This document is the single source of truth for future Claude s
 
 A full-stack web app that analyzes a user's Spotify listening history and generates a personalized birthday party playlist. Live at **https://birthday-playlist.onrender.com** (Render free tier, first request after idle may take ~30s to cold-start).
 
-Originally a Node/Express/vanilla JS CLI. Rewritten in-place to a Rails 8 API + React TypeScript monorepo (see `PLAN.md` for the rewrite plan). The old Node app files were removed.
+Originally a Node/Express/vanilla JS CLI. Rewritten in-place to a Rails 8 API + React TypeScript monorepo (see `docs/PLAN.md` for the rewrite plan). The old Node app files were removed.
 
 ---
 
@@ -50,8 +50,12 @@ birthday-playlist-analyzer/
 │   └── vite.config.ts
 │
 ├── render.yaml             Render Blueprint (defines db + API + static site)
-├── PLAN.md                 Original full-rewrite implementation plan (reference)
-├── POST-HOSTING.md         Security/hardening checklist with current progress
+├── docs/
+│   ├── PLAN.md             Original full-rewrite implementation plan (reference)
+│   ├── POST-HOSTING.md     Security/hardening checklist with current progress
+│   ├── IMPLEMENTATION_SUMMARY.md  Historical rewrite summary
+│   ├── PR-FOLLOWUPS.md     Follow-up work filed from PR reviews
+│   └── WISHLIST.md         User wishlist (nice-to-haves, unscheduled)
 └── CLAUDE.md               ← you are here
 ```
 
@@ -187,14 +191,18 @@ Push to `master` → Render auto-deploys both services. First request after idle
 - **Do not create tests on the frontend** — user opted out; TypeScript compilation is the smoke test.
 - **Before committing** any frontend change, run `cd client && npx tsc -b` — Vite's production build on Render fails on type errors, unused imports, etc.
 - **Commit etiquette:** branch for non-trivial features (pattern: `feature/<name>`), merge with `--no-ff`, delete the branch after merge. Straight-to-master is fine for small fixes.
+- **Before touching recently-reviewed code**, skim `docs/PR-FOLLOWUPS.md` — it tracks concrete items a reviewer flagged but didn't block the PR on. If what you're about to work on overlaps an entry there, consider closing the entry at the same time.
 - **Memory files at `~/.claude/projects/-Users-irosen419-code-birthday-playlist-analyzer/memory/`** auto-load every session and complement this file with user-specific context (profile, preferences, running feature roadmap).
 
 ---
 
 ## Where to look for more detail
 
-- **`PLAN.md`** — the original full-rewrite implementation plan with the complete database schema, phase-by-phase breakdown, and file structure. Historical reference; don't use it as an up-to-date source.
-- **`POST-HOSTING.md`** — security/hardening checklist with current status. Has both "done" items (rate limiting, allowlist, Dependabot, payload cap, CSRF/token auth) and open items (Sentry, CSP, DB backups, field length validation).
+- **`docs/PLAN.md`** — the original full-rewrite implementation plan with the complete database schema, phase-by-phase breakdown, and file structure. Historical reference; don't use it as an up-to-date source.
+- **`docs/POST-HOSTING.md`** — security/hardening checklist with current status. Has both "done" items (rate limiting, allowlist, Dependabot, payload cap, CSRF/token auth) and open items (Sentry, CSP, DB backups, field length validation).
+- **`docs/IMPLEMENTATION_SUMMARY.md`** — historical summary of the Rails/React rewrite.
+- **`docs/PR-FOLLOWUPS.md`** — follow-up work surfaced by code reviews that wasn't in-scope for the PR itself. Check here before starting work that touches recently-reviewed code.
+- **`docs/WISHLIST.md`** — nice-to-have features and ideas that aren't scheduled. Lower priority than `PR-FOLLOWUPS.md`.
 - **`README.md`** — user-facing project description, setup instructions, deployment walkthrough.
 - **`api/app/services/playlist_generator_service.rb`** — the heart of generation logic. Randomization, ratios, dedup, nostalgic artists, era hits, shuffle.
 - **`client/src/components/playlist/PlaylistEditor.tsx`** — central hub for the editor; lots of state management lives here.
