@@ -148,6 +148,26 @@ export default function PlaylistEditor() {
     []
   );
 
+  const handleMove = useCallback(
+    (trackId: string, newPosition: number) => {
+      setTracks((prev) => {
+        const currentIndex = prev.findIndex((t) => t.id === trackId);
+        if (currentIndex === -1) return prev;
+        const clampedTarget = Math.max(
+          0,
+          Math.min(newPosition, prev.length - 1)
+        );
+        if (clampedTarget === currentIndex) return prev;
+
+        const updated = [...prev];
+        const [moved] = updated.splice(currentIndex, 1);
+        updated.splice(clampedTarget, 0, moved);
+        return recalculatePositions(updated);
+      });
+    },
+    []
+  );
+
   const handleToggleLock = useCallback((trackId: string) => {
     setLockedTrackIds((prev) => {
       const next = new Set(prev);
@@ -279,6 +299,7 @@ export default function PlaylistEditor() {
         onPlay={playTrack}
         onToggleLock={handleToggleLock}
         onRemove={handleRemove}
+        onMove={handleMove}
         isGenerating={generateMutation.isPending}
       />
     </div>

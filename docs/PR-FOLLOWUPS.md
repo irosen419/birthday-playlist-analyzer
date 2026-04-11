@@ -63,6 +63,17 @@ When adding a new item, use this shape:
 **Why:** The callback builds `"#{frontend_url}#auth_token=#{token}"`. If `FRONTEND_URL` ever contains a `#` (unlikely, but not impossible), the redirect produces `foo##auth_token=…` and the frontend can't parse it. Low risk; cheap guard.
 **Suggested approach:** Either `URI(frontend_url).tap { |u| u.fragment = "auth_token=#{token}" }.to_s`, or assert during app boot that `FRONTEND_URL` does not contain `#`.
 
+### ⬜ Extend "Open in Spotify" fallback to non-Premium desktop users
+
+**From:** Mobile UX pass — PlayerBar hidden on mobile + tap-to-popover
+**Area:** `api/app/services/` (OAuth user upsert), `api/app/serializers/` (or wherever the user is serialized), `client/src/context/AuthContext.tsx`, `client/src/components/layout/AppLayout.tsx`, `client/src/components/playlist/TrackItem.tsx`
+**Why:** Spotify Web Playback SDK requires Premium. Free/Open users load the SDK but every `play` call 403s, so on desktop they currently tap a track, nothing happens, and the bottom `PlayerBar` sits at "No track playing" forever. The mobile pass already built the correct fallback UI (hidden PlayerBar + "Open in Spotify" popover) — we should reuse it for non-Premium desktop users so there's a single dead-end-free code path.
+**Suggested approach:**
+1. Backend (TDD): add a `spotify_product` string column to `users`, populate it from the Spotify `/me` response at OAuth callback time, expose it on the user serializer. Default to `nil` for existing rows (treat `nil` as "assume premium" to avoid silently breaking current users until they re-auth).
+2. Frontend: expose `user.spotifyProduct` through `AuthContext`, derive `const isPremium = user?.spotifyProduct === 'premium'`. Replace the pure-CSS `md:`-based gating in `AppLayout`/`TrackItem` with `isMobile || !isPremium` — note this means the mobile/desktop split can no longer be pure Tailwind breakpoints; you'll need `useMediaQuery` or a JS breakpoint check so non-Premium desktop renders the mobile variant unconditionally.
+3. Optional: one-time dismissible banner on the playlist editor for non-Premium users explaining "Playback requires Spotify Premium — tap any track to open it in Spotify."
+4. Regression check: confirm Premium desktop still plays in-browser and Premium mobile still gets the popover fallback.
+
 ---
 
 ## Done
