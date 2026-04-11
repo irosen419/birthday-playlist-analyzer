@@ -26,7 +26,10 @@ class AuthController < ApplicationController
     temp_user = build_temp_user(tokens)
     profile = SpotifyApiClient.new(temp_user).current_user
 
+    Rails.logger.info "[auth] Spotify profile email: #{profile['email'].inspect}, allowlist: #{parsed_allowlist.inspect}"
+
     unless email_allowed?(profile["email"])
+      Rails.logger.warn "[auth] Email not in allowlist: #{profile['email'].inspect}"
       reset_session
       redirect_to "#{frontend_url}?error=unauthorized", allow_other_host: true
       return
