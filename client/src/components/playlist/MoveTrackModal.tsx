@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface MoveTrackModalProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export default function MoveTrackModal({
     commitMove(parsed);
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
       onClick={onClose}
@@ -72,18 +73,18 @@ export default function MoveTrackModal({
           <p className="mt-1 truncate text-sm text-[#b3b3b3]">{trackName}</p>
         </div>
 
-        <div className="mb-4 flex gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => commitMove(1)}
-            className="flex-1 cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white"
+            className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white sm:flex-1"
           >
             Move to top
           </button>
           <button
             type="button"
             onClick={() => commitMove(totalTracks)}
-            className="flex-1 cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white"
+            className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white sm:flex-1"
           >
             Move to bottom
           </button>
@@ -109,23 +110,24 @@ export default function MoveTrackModal({
           />
         </label>
 
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white"
+            className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-white transition-colors hover:border-white sm:flex-1"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleConfirm}
-            className="flex-1 cursor-pointer rounded-full bg-[#1DB954] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#1ed760]"
+            className="cursor-pointer rounded-full bg-[#1DB954] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#1ed760] sm:flex-1"
           >
             Move
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

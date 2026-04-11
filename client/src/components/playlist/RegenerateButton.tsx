@@ -42,12 +42,12 @@ export default function RegenerateButton({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2">
       <button
         onClick={handleClick}
         disabled={isGenerating || allLocked}
         title={allLocked ? 'Unlock at least one track to regenerate' : undefined}
-        className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-6 py-2 text-sm font-semibold text-white transition-colors hover:border-white disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full cursor-pointer rounded-full border border-[#404040] bg-transparent px-6 py-2 text-sm font-semibold text-white transition-colors hover:border-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         {isGenerating ? 'Generating...' : 'Regenerate'}
       </button>
@@ -56,7 +56,7 @@ export default function RegenerateButton({
         <button
           onClick={onShuffle}
           disabled={allLocked}
-          className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-[#b3b3b3] transition-colors hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-[#b3b3b3] transition-colors hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           title={allLocked ? 'Unlock some tracks to shuffle' : 'Shuffle track order'}
         >
           Shuffle
@@ -66,7 +66,7 @@ export default function RegenerateButton({
       {tracks.length > 0 && (
         <button
           onClick={allLocked ? onUnlockAll : onLockAll}
-          className="cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-[#b3b3b3] transition-colors hover:border-white hover:text-white"
+          className="w-full cursor-pointer rounded-full border border-[#404040] bg-transparent px-4 py-2 text-sm font-semibold text-[#b3b3b3] transition-colors hover:border-white hover:text-white sm:w-auto"
         >
           {allLocked ? '🔓 Unlock All' : noneLocked ? '🔒 Lock All' : `🔒 Lock All (${someLockedCount}/${tracks.length})`}
         </button>
