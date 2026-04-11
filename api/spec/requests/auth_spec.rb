@@ -81,7 +81,7 @@ RSpec.describe "Auth", type: :request do
       get "/auth/spotify/callback", params: { code: "auth_code", state: state }
 
       expect(response).to have_http_status(:found)
-      expect(response.location).to eq("http://localhost:5173")
+      expect(response.location).to eq(ENV["FRONTEND_URL"] || "http://localhost:5173")
     end
 
     it "redirects to custom frontend URL when ENV is set" do
@@ -94,6 +94,82 @@ RSpec.describe "Auth", type: :request do
       get "/auth/spotify/callback", params: { code: "auth_code", state: state }
 
       expect(response.location).to eq("https://myapp.com")
+    end
+
+    describe "email allowlist" do
+      let(:frontend_url) { ENV["FRONTEND_URL"] || "http://localhost:5173" }
+
+      def stub_allowlist(value)
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("ALLOWED_EMAILS").and_return(value)
+      end
+
+      def complete_callback
+        get "/auth/spotify"
+        state = extract_state_from(response.location)
+        get "/auth/spotify/callback", params: { code: "auth_code", state: state }
+      end
+
+      context "when the allowlist contains the user's email" do
+        before { stub_allowlist("other@example.com,test@example.com,another@example.com") }
+
+        it "creates the user and redirects to the frontend" do
+          expect { complete_callback }.to change(User, :count).by(1)
+
+          expect(response).to have_http_status(:found)
+          expect(response.location).to eq(frontend_url)
+        end
+      end
+
+      context "when the allowlist is present but omits the user's email" do
+        before { stub_allowlist("someone@example.com,else@example.com") }
+
+        it "does not create a user" do
+          expect { complete_callback }.not_to change(User, :count)
+        end
+
+        it "redirects to frontend with an unauthorized error param" do
+          complete_callback
+
+          expect(response).to have_http_status(:found)
+          expect(response.location).to eq("#{frontend_url}?error=unauthorized")
+        end
+
+        it "clears the session" do
+          complete_callback
+
+          # A fresh /api/me call should be treated as unauthenticated.
+          get "/api/me"
+          expect(response).to have_http_status(:unauthorized)
+        end
+      end
+
+      context "when the allowlist env var is blank" do
+        before { stub_allowlist("") }
+
+        it "allows the login" do
+          expect { complete_callback }.to change(User, :count).by(1)
+          expect(response.location).to eq(frontend_url)
+        end
+      end
+
+      context "when the allowlist env var is nil" do
+        before { stub_allowlist(nil) }
+
+        it "allows the login" do
+          expect { complete_callback }.to change(User, :count).by(1)
+          expect(response.location).to eq(frontend_url)
+        end
+      end
+
+      context "when the allowlist contains whitespace and mixed case" do
+        before { stub_allowlist(" Other@example.com , TEST@example.com ") }
+
+        it "matches case-insensitively and ignores surrounding whitespace" do
+          expect { complete_callback }.to change(User, :count).by(1)
+          expect(response.location).to eq(frontend_url)
+        end
+      end
     end
   end
 

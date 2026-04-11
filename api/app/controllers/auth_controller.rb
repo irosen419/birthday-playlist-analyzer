@@ -26,6 +26,12 @@ class AuthController < ApplicationController
     temp_user = build_temp_user(tokens)
     profile = SpotifyApiClient.new(temp_user).current_user
 
+    unless email_allowed?(profile["email"])
+      reset_session
+      redirect_to "#{frontend_url}?error=unauthorized", allow_other_host: true
+      return
+    end
+
     user = upsert_user(profile, tokens)
     session[:user_id] = user.id
 
@@ -41,6 +47,25 @@ class AuthController < ApplicationController
 
   def valid_state?
     params[:state].present? && params[:state] == session[:oauth_state]
+  end
+
+  # Returns true when no allowlist is configured (open sign-up for dev) or
+  # when the given email appears in the comma-separated ALLOWED_EMAILS env var.
+  # Matching is case-insensitive and tolerant of surrounding whitespace so
+  # operators can paste lists casually into the Render dashboard.
+  def email_allowed?(email)
+    allowlist = parsed_allowlist
+    return true if allowlist.empty?
+    return false if email.blank?
+
+    allowlist.include?(email.to_s.strip.downcase)
+  end
+
+  def parsed_allowlist
+    raw = ENV["ALLOWED_EMAILS"]
+    return [] if raw.nil? || raw.strip.empty?
+
+    raw.split(",").map { |entry| entry.strip.downcase }.reject(&:empty?)
   end
 
   def build_temp_user(tokens)

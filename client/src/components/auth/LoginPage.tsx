@@ -1,7 +1,18 @@
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+
+const UNAUTHORIZED_ERROR_MESSAGE =
+  'Your account is not authorized to use this app. Contact the owner for access.';
+
+const readUnauthorizedErrorFromUrl = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('error') === 'unauthorized' ? UNAUTHORIZED_ERROR_MESSAGE : null;
+};
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const [errorMessage] = useState<string | null>(readUnauthorizedErrorFromUrl);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#121212] px-4">
@@ -17,6 +28,15 @@ export default function LoginPage() {
           analyze your listening history to build the ultimate birthday party
           playlist.
         </p>
+
+        {errorMessage && (
+          <div
+            role="alert"
+            className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+          >
+            {errorMessage}
+          </div>
+        )}
 
         <button
           onClick={login}
