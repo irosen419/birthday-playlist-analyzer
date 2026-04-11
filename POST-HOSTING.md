@@ -2,37 +2,24 @@
 
 Things to address after the initial Render deployment. Ordered by priority.
 
+**Status legend:** ✅ Done · ⏳ In progress · ⬜ Not started
+
 ---
 
 ## Must-have before sharing the URL publicly
 
-### 1. Rate limiting
+### ✅ 1. Rate limiting — DONE
 
-Right now anyone can hammer the API endpoints. Add the `rack-attack` gem to throttle:
+`rack-attack` is configured with these throttles in `/api/config/initializers/rack_attack.rb`:
 
-- **Auth attempts** — brute force protection on `/auth/spotify/callback`
-- **`/api/search` and `/api/playlists/:id/generate`** — these hit the Spotify API and could exhaust the quota if abused
-- **General requests per IP** — e.g., 100 requests per minute per IP
+- General: 100 requests per minute per IP
+- Generate: 5 requests per minute per IP on `/api/playlists/:id/generate`
+- Search: 30 requests per minute per IP on `/api/search`
+- Auth callback: 10 requests per 5 minutes per IP
 
-Example implementation:
+Throttled requests return a 429 JSON response. Disabled in the test environment to avoid bleeding counters across specs. Specs live at `/api/spec/requests/rate_limiting_spec.rb`.
 
-```ruby
-# Gemfile
-gem "rack-attack"
-
-# config/initializers/rack_attack.rb
-class Rack::Attack
-  throttle("req/ip", limit: 100, period: 1.minute) { |req| req.ip }
-  throttle("generate/ip", limit: 5, period: 1.minute) do |req|
-    req.ip if req.path.match?(%r{/api/playlists/\d+/generate})
-  end
-  throttle("search/ip", limit: 30, period: 1.minute) do |req|
-    req.ip if req.path == "/api/search"
-  end
-end
-```
-
-### 2. Token exposure in `/api/token`
+### ⬜ 2. Token exposure in `/api/token`
 
 The Web Playback SDK endpoint returns the raw Spotify access token to the browser. This is necessary for the SDK to stream audio but means the token is visible in:
 
@@ -48,33 +35,31 @@ Mitigations to consider:
 - Narrow the scopes (e.g., drop `playlist-modify-*` from the token returned to the browser — the backend can use a separate elevated token for publishing)
 - Audit what the frontend actually needs vs what the backend needs
 
-### 3. Open user registration
+### ✅ 3. Email allowlist — DONE
 
-Anyone with a Spotify account can currently sign up. Options:
+The app supports an `ALLOWED_EMAILS` env var (comma-separated list). Implemented in `/api/app/controllers/auth_controller.rb`:
 
-- **Allowlist** (simplest): Only specific Spotify emails can log in. Add a check in `AuthController#callback`:
-  ```ruby
-  ALLOWED_EMAILS = %w[you@example.com friend@example.com].freeze
-  unless ALLOWED_EMAILS.include?(profile["email"])
-    reset_session
-    redirect_to "#{frontend_url}?error=unauthorized", allow_other_host: true
-    return
-  end
-  ```
-- **Invite codes**: Users need a code to complete signup (more complex, lets you share selectively)
-- **Leave it open**: Fine if you're OK with the exposure — only concern is Spotify API quota
+- Blank/missing env var → all authenticated Spotify users allowed (dev default)
+- Set → only listed emails can log in. Unauthorized users are redirected to `${FRONTEND_URL}?error=unauthorized` and no user record is created
+- Case-insensitive, whitespace-tolerant matching
+
+Frontend (`/client/src/components/auth/LoginPage.tsx`) displays an "Your account is not authorized" banner when the error param is present.
+
+Set `ALLOWED_EMAILS` in the Render dashboard on the `birthday-playlist-api` service to enable the gate in production.
+
+Note: Spotify itself imposes a 25-user cap on development-mode apps, so all users must also be added as test users in the Spotify Developer Dashboard.
 
 ---
 
 ## Nice to have
 
-### 4. Logging & monitoring
+### ⬜ 4. Logging & monitoring
 
 - Render has basic stdout logs but no error aggregation
 - **Sentry** has a free tier for error tracking — wire it up in both Rails and React
 - Spotify API quota monitoring — log 429 rate limit responses from Spotify so we know when we're getting throttled
 
-### 5. CSRF protection
+### ⬜ 5. CSRF protection
 
 Rails API mode skips CSRF by default. With cookie-based auth we should consider adding it:
 
@@ -86,36 +71,33 @@ protect_from_forgery with: :exception
 
 And add CSRF tokens to the frontend axios calls. The `rack-cors` config with `credentials: true` helps prevent cross-site abuse, but an explicit CSRF token on mutations is stronger.
 
-### 6. Input validation audit
+### ⏳ 6. Input validation audit
 
-We trust the frontend to send valid data. Things to audit:
+Progress:
+- ✅ **SQL injection** — Rails ActiveRecord handles this automatically
+- ✅ **XSS** — React auto-escapes by default
+- ✅ **Large payloads** — `PlaylistsController#update` now rejects > 500 tracks with a 413
+- ⬜ **Name/text field length** — no max length on playlist names, nostalgic artist names, etc. Add model validations.
+- ⬜ **Email/birth_year format** — validate server-side, not just trust the frontend
 
-- **SQL injection** — Rails ActiveRecord handles this automatically ✓
-- **XSS** — React auto-escapes by default ✓
-- **Large payloads** — no max body size set. A malicious user could POST a huge `tracks` array to the auto-save endpoint and cause memory pressure. Add a limit:
-  ```ruby
-  # PlaylistsController#update
-  return render json: { error: "Too many tracks" }, status: :payload_too_large if data[:tracks]&.length.to_i > 500
-  ```
-- **Name/text field length** — no max length on playlist names, nostalgic artist names, etc. Add validations.
+### ✅ 7. Dependency scanning — DONE
 
-### 7. Dependency scanning
+Dependabot is configured in `/.github/dependabot.yml` with weekly updates for:
+- `bundler` in `/api`
+- `npm` in `/client`
+- `github-actions` in `/`
 
-Enable Dependabot on the GitHub repo (free):
+To enable alerts in GitHub: Repo Settings → Security → Code security and analysis → enable "Dependency graph" and "Dependabot alerts."
 
-1. Go to Repo Settings → Security → Code security and analysis
-2. Enable Dependabot alerts and security updates
-3. Dependabot will open PRs when dependencies have security updates
-
-Also consider:
-- `bundle audit` (already in Rails via `brakeman`) in CI
-- `npm audit` in CI
+Also consider adding to CI:
+- `bundle audit` / `brakeman` for Rails
+- `npm audit` for client
 
 ---
 
 ## Lower priority
 
-### 8. Content Security Policy headers
+### ⬜ 8. Content Security Policy headers
 
 Locks down what scripts/resources can run in the browser. Rails has a CSP helper:
 
@@ -129,7 +111,7 @@ Rails.application.config.content_security_policy do |policy|
 end
 ```
 
-### 9. Database backups
+### ⬜ 9. Database backups
 
 Render's free Postgres tier does NOT include automated backups. Options:
 
@@ -137,7 +119,7 @@ Render's free Postgres tier does NOT include automated backups. Options:
 - Manually dump with `pg_dump` on a cron
 - Use GitHub Actions to run nightly backups to S3
 
-### 10. Secrets rotation
+### ⬜ 10. Secrets rotation
 
 If `LOCKBOX_MASTER_KEY` or `RAILS_MASTER_KEY` ever leaks, you need a rotation plan:
 
@@ -145,7 +127,7 @@ If `LOCKBOX_MASTER_KEY` or `RAILS_MASTER_KEY` ever leaks, you need a rotation pl
 - **Rails master key** rotation requires regenerating `config/credentials.yml.enc` with the new key
 - For now, just don't paste these anywhere public and don't commit them to git
 
-### 11. HTTPS / HSTS
+### ⬜ 11. HTTPS / HSTS
 
 Render provides HTTPS automatically and `config.force_ssl = true` is set in production, which enables HSTS. Verify headers in the response after deployment:
 
@@ -154,7 +136,7 @@ curl -I https://birthday-playlist-api.onrender.com
 # Look for: Strict-Transport-Security: max-age=...
 ```
 
-### 12. CORS origin lock
+### ⬜ 12. CORS origin lock
 
 CORS is currently configured to allow only `FRONTEND_URL`. Verify this is set correctly in production and not accidentally set to `*` or a wildcard.
 
@@ -165,8 +147,8 @@ CORS is currently configured to allow only `FRONTEND_URL`. Verify this is set co
 Before sharing the URL with anyone:
 
 1. ✅ Add rate limiting (`rack-attack`) — **#1**
-2. ✅ Decide on registration strategy — **#3**
+2. ✅ Decide on registration strategy — **#3** (allowlist implemented)
 3. ✅ Enable Dependabot — **#7**
-4. ✅ Add max payload size to `/api/playlists/:id` update — **#6**
+4. ✅ Add max payload size to `/api/playlists/:id` update — **#6** (partial)
 
-The rest can come later as the app gets real use.
+**First-pass complete.** Remaining items are nice-to-have and can come later as the app gets real use.
