@@ -13,6 +13,11 @@ class AuthController < ApplicationController
   end
 
   def callback
+    if params[:error].present?
+      redirect_to frontend_url, allow_other_host: true
+      return
+    end
+
     unless valid_state?
       render json: { error: "Invalid state parameter" }, status: :unprocessable_entity
       return
