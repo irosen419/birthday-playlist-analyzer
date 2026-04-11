@@ -4,7 +4,17 @@ class ApplicationController < ActionController::API
   private
 
   def current_user
-    @current_user ||= User.find_by(id: session[:user_id])
+    return @current_user if defined?(@current_user)
+
+    token = bearer_token
+    @current_user = token ? User.find_by(id: AuthTokenService.decode(token)) : nil
+  end
+
+  def bearer_token
+    header = request.headers["Authorization"]
+    return nil unless header&.start_with?("Bearer ")
+
+    header.split(" ", 2).last
   end
 
   def authenticate_user!

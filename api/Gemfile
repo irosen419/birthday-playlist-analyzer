@@ -42,6 +42,9 @@ gem "rack-attack"
 # Spotify API HTTP client
 gem "faraday"
 
+# JWT-based auth tokens
+gem "jwt"
+
 # Encrypted attributes for token storage
 gem "lockbox"
 gem "blind_index"

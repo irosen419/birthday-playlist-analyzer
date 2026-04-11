@@ -41,9 +41,10 @@ class AuthController < ApplicationController
     end
 
     user = upsert_user(profile, tokens)
-    session[:user_id] = user.id
+    token = AuthTokenService.encode(user.id)
+    reset_session
 
-    redirect_to frontend_url, allow_other_host: true
+    redirect_to "#{frontend_url}?auth_token=#{token}", allow_other_host: true
   end
 
   def logout

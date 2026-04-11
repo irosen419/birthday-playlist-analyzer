@@ -13,6 +13,7 @@ interface PlaylistTrackListProps {
   onPlay: (uri: string) => void;
   onToggleLock: (trackId: string) => void;
   onRemove: (trackId: string) => void;
+  isGenerating?: boolean;
 }
 
 export default function PlaylistTrackList({
@@ -21,6 +22,7 @@ export default function PlaylistTrackList({
   onPlay,
   onToggleLock,
   onRemove,
+  isGenerating = false,
 }: PlaylistTrackListProps) {
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
@@ -29,6 +31,20 @@ export default function PlaylistTrackList({
   }
 
   if (!tracks.length) {
+    if (isGenerating) {
+      return (
+        <div className="rounded-xl bg-[#181818] p-12 text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#282828] border-t-[#1DB954]" />
+          <p className="text-lg font-semibold text-white">
+            Generating your playlist...
+          </p>
+          <p className="mt-2 text-sm text-[#b3b3b3]">
+            Analyzing your music and finding the perfect tracks. This may take a moment.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-xl bg-[#181818] p-8 text-center">
         <p className="text-[#b3b3b3]">

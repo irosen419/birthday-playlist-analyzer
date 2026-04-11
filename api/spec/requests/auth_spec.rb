@@ -43,6 +43,8 @@ RSpec.describe "Auth", type: :request do
     before do
       allow(SpotifyAuthService).to receive(:exchange_code).and_return(token_response)
       allow_any_instance_of(SpotifyApiClient).to receive(:current_user).and_return(spotify_profile)
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("ALLOWED_EMAILS").and_return(nil)
     end
 
     it "returns 422 when state does not match session" do
@@ -74,18 +76,18 @@ RSpec.describe "Auth", type: :request do
       expect(user.display_name).to eq("Test User")
     end
 
-    it "redirects to frontend URL after successful login" do
+    it "redirects to frontend URL with an auth_token after successful login" do
       get "/auth/spotify"
       state = extract_state_from(response.location)
 
       get "/auth/spotify/callback", params: { code: "auth_code", state: state }
 
       expect(response).to have_http_status(:found)
-      expect(response.location).to eq(ENV["FRONTEND_URL"] || "http://localhost:5173")
+      frontend = ENV["FRONTEND_URL"] || "http://localhost:5173"
+      expect(response.location).to match(%r{\A#{Regexp.escape(frontend)}\?auth_token=.+\z})
     end
 
     it "redirects to custom frontend URL when ENV is set" do
-      allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("FRONTEND_URL").and_return("https://myapp.com")
 
       get "/auth/spotify"
@@ -93,7 +95,20 @@ RSpec.describe "Auth", type: :request do
 
       get "/auth/spotify/callback", params: { code: "auth_code", state: state }
 
-      expect(response.location).to eq("https://myapp.com")
+      expect(response.location).to start_with("https://myapp.com?auth_token=")
+    end
+
+    it "generates a valid auth token in the redirect URL" do
+      get "/auth/spotify"
+      state = extract_state_from(response.location)
+
+      get "/auth/spotify/callback", params: { code: "auth_code", state: state }
+
+      token = extract_auth_token_from(response.location)
+      expect(token).to be_present
+
+      created_user = User.find_by(spotify_id: "spotify_user_123")
+      expect(AuthTokenService.decode(token)).to eq(created_user.id)
     end
 
     describe "email allowlist" do
@@ -113,11 +128,11 @@ RSpec.describe "Auth", type: :request do
       context "when the allowlist contains the user's email" do
         before { stub_allowlist("other@example.com,test@example.com,another@example.com") }
 
-        it "creates the user and redirects to the frontend" do
+        it "creates the user and redirects to the frontend with a token" do
           expect { complete_callback }.to change(User, :count).by(1)
 
           expect(response).to have_http_status(:found)
-          expect(response.location).to eq(frontend_url)
+          expect(response.location).to start_with("#{frontend_url}?auth_token=")
         end
       end
 
@@ -149,7 +164,7 @@ RSpec.describe "Auth", type: :request do
 
         it "allows the login" do
           expect { complete_callback }.to change(User, :count).by(1)
-          expect(response.location).to eq(frontend_url)
+          expect(response.location).to start_with("#{frontend_url}?auth_token=")
         end
       end
 
@@ -158,7 +173,7 @@ RSpec.describe "Auth", type: :request do
 
         it "allows the login" do
           expect { complete_callback }.to change(User, :count).by(1)
-          expect(response.location).to eq(frontend_url)
+          expect(response.location).to start_with("#{frontend_url}?auth_token=")
         end
       end
 
@@ -167,7 +182,7 @@ RSpec.describe "Auth", type: :request do
 
         it "matches case-insensitively and ignores surrounding whitespace" do
           expect { complete_callback }.to change(User, :count).by(1)
-          expect(response.location).to eq(frontend_url)
+          expect(response.location).to start_with("#{frontend_url}?auth_token=")
         end
       end
     end
@@ -191,5 +206,10 @@ RSpec.describe "Auth", type: :request do
   def extract_state_from(url)
     query = URI.parse(url).query
     Rack::Utils.parse_query(query)["state"]
+  end
+
+  def extract_auth_token_from(url)
+    query = URI.parse(url).query
+    Rack::Utils.parse_query(query)["auth_token"]
   end
 end

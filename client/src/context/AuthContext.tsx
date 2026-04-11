@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import type { User } from '../types';
 import { getMe, logout as logoutApi } from '../api/auth';
 import { API_URL } from '../api/client';
+import { clearAuthToken, setAuthToken } from '../lib/auth';
 
 interface AuthContextValue {
   user: User | null;
@@ -26,6 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get('auth_token');
+
+    if (tokenFromUrl) {
+      setAuthToken(tokenFromUrl);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     getMe()
       .then(setUser)
       .catch(() => setUser(null))
@@ -37,7 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    await logoutApi();
+    clearAuthToken();
+    try {
+      await logoutApi();
+    } catch {
+      // Stateless token logout: server-side call is best-effort.
+    }
     setUser(null);
     navigate('/');
   }
