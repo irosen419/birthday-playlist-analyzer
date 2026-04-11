@@ -41,9 +41,13 @@ export default function TrackItem({
   const [popoverPlacement, setPopoverPlacement] = useState<'bottom' | 'top'>(
     'bottom'
   );
+  const [measuredPopoverHeight, setMeasuredPopoverHeight] = useState<
+    number | null
+  >(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const mobileRowRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const wasPopoverOpenRef = useRef(false);
 
   useEffect(() => {
     if (!isPopoverOpen) return;
@@ -55,26 +59,60 @@ export default function TrackItem({
       onOpenPopover(null);
     }
 
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onOpenPopover(null);
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isPopoverOpen, onOpenPopover]);
 
   useLayoutEffect(() => {
-    if (!isPopoverOpen || !mobileRowRef.current) return;
+    if (!isPopoverOpen || !mobileRowRef.current) {
+      if (measuredPopoverHeight !== null) setMeasuredPopoverHeight(null);
+      return;
+    }
+
+    const actualHeight = popoverRef.current?.offsetHeight ?? null;
+    if (actualHeight !== null && actualHeight !== measuredPopoverHeight) {
+      setMeasuredPopoverHeight(actualHeight);
+    }
+
+    const popoverHeight =
+      measuredPopoverHeight ?? actualHeight ?? ESTIMATED_POPOVER_HEIGHT;
 
     const rect = mobileRowRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
 
-    if (spaceBelow < ESTIMATED_POPOVER_HEIGHT && spaceAbove > spaceBelow) {
+    if (spaceBelow < popoverHeight && spaceAbove > spaceBelow) {
       setPopoverPlacement('top');
     } else {
       setPopoverPlacement('bottom');
     }
+  }, [isPopoverOpen, measuredPopoverHeight]);
+
+  useEffect(() => {
+    if (!isPopoverOpen || !popoverRef.current) return;
+    const firstMenuItem = popoverRef.current.querySelector<HTMLElement>(
+      '[role="menuitem"]'
+    );
+    firstMenuItem?.focus();
+  }, [isPopoverOpen]);
+
+  useEffect(() => {
+    if (wasPopoverOpenRef.current && !isPopoverOpen) {
+      menuButtonRef.current?.focus();
+    }
+    wasPopoverOpenRef.current = isPopoverOpen;
   }, [isPopoverOpen]);
 
   function handleRowClickDesktop() {
@@ -100,7 +138,7 @@ export default function TrackItem({
       </div>
 
       {/* Position number */}
-      <span className="w-6 text-center text-sm tabular-nums text-[#6a6a6a]">
+      <span className="w-8 text-center text-sm tabular-nums text-[#6a6a6a]">
         {track.position + 1}
       </span>
 
@@ -157,6 +195,8 @@ export default function TrackItem({
           {isPopoverOpen && (
             <div
               ref={popoverRef}
+              role="menu"
+              aria-label={`Actions for ${track.name}`}
               className={`absolute left-12 z-40 flex min-w-[160px] flex-col rounded-lg border border-[#404040] bg-[#282828] py-1 shadow-xl ${
                 popoverPlacement === 'top'
                   ? 'bottom-full mb-1'
@@ -168,6 +208,7 @@ export default function TrackItem({
                 href={`https://open.spotify.com/track/${track.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                role="menuitem"
                 onClick={() => onOpenPopover(null)}
                 className="whitespace-nowrap px-4 py-2 text-left text-sm font-semibold text-[#1DB954] hover:bg-[#3a3a3a]"
               >
@@ -175,6 +216,7 @@ export default function TrackItem({
               </a>
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   setIsMoveModalOpen(true);
                   onOpenPopover(null);
@@ -185,6 +227,7 @@ export default function TrackItem({
               </button>
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onToggleLock(track.id);
                   onOpenPopover(null);
@@ -195,6 +238,7 @@ export default function TrackItem({
               </button>
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onRemove(track.id);
                   onOpenPopover(null);
@@ -242,6 +286,8 @@ export default function TrackItem({
         type="button"
         onClick={() => onOpenPopover(isPopoverOpen ? null : track.id)}
         aria-label="Track actions"
+        aria-haspopup="menu"
+        aria-expanded={isPopoverOpen}
         className="cursor-pointer border-none bg-transparent p-1.5 text-lg leading-none text-[#b3b3b3] md:hidden"
       >
         &#8942;

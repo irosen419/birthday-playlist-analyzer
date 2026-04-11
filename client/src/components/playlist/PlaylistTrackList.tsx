@@ -63,14 +63,14 @@ export default function PlaylistTrackList({
 
   return (
     <>
-      <div className="sticky top-[60px] z-10 mb-1 flex items-center gap-3 border-b border-[#282828] bg-[#181818]/95 px-3 py-2 text-xs uppercase tracking-widest text-[#b3b3b3] backdrop-blur md:hidden">
-        <span className="w-6 text-center">#</span>
+      <div className="sticky top-[var(--app-header-height,56px)] z-10 mb-1 flex items-center gap-3 border-b border-[#282828] bg-[#181818]/95 px-3 py-2 text-xs uppercase tracking-widest text-[#b3b3b3] backdrop-blur md:hidden">
+        <span className="w-8 text-center">#</span>
         <span className="min-w-0 flex-1 pl-[52px]">Title</span>
         <span aria-hidden className="invisible p-1.5 text-lg leading-none">&#8942;</span>
       </div>
-      <div className="sticky top-[60px] z-10 mb-1 hidden items-center gap-3 border-b border-[#282828] bg-[#181818]/95 px-3 py-2 text-xs uppercase tracking-widest text-[#b3b3b3] backdrop-blur md:flex">
+      <div className="sticky top-[var(--app-header-height,56px)] z-10 mb-1 hidden items-center gap-3 border-b border-[#282828] bg-[#181818]/95 px-3 py-2 text-xs uppercase tracking-widest text-[#b3b3b3] backdrop-blur md:flex">
         <span aria-hidden className="invisible">&#8645;</span>
-        <span className="w-6 text-center">#</span>
+        <span className="w-8 text-center">#</span>
         <span className="min-w-0 flex-1 pl-[52px]">Title</span>
         <span>Duration</span>
         <span className="w-[64px] text-right">Actions</span>
