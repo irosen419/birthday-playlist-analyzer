@@ -43,15 +43,9 @@ module Api
 
     # Add cookie/session middleware back for Spotify OAuth
     config.middleware.use ActionDispatch::Cookies
-    if ENV["RAILS_ENV"] == "production"
-      config.middleware.use ActionDispatch::Session::CookieStore,
-        key: "_birthday_playlist_session",
-        same_site: :none,
-        secure: true
-    else
-      config.middleware.use ActionDispatch::Session::CookieStore,
-        key: "_birthday_playlist_session",
-        same_site: :lax
-    end
+    config.middleware.use ActionDispatch::Session::CookieStore,
+      key: "_birthday_playlist_session",
+      same_site: :lax,
+      secure: ENV["RAILS_ENV"] == "production"
   end
 end
