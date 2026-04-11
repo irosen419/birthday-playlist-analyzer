@@ -16,7 +16,7 @@ interface TrackItemProps {
   onMove: (trackId: string, newPosition: number) => void;
 }
 
-const ESTIMATED_POPOVER_HEIGHT = 60;
+const ESTIMATED_POPOVER_HEIGHT = 180;
 
 function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
@@ -43,17 +43,16 @@ export default function TrackItem({
   );
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const mobileRowRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!isPopoverOpen) return;
 
     function handleClickOutside(event: Event) {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
-      ) {
-        onOpenPopover(null);
-      }
+      const target = event.target as Node;
+      if (popoverRef.current?.contains(target)) return;
+      if (menuButtonRef.current?.contains(target)) return;
+      onOpenPopover(null);
     }
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -82,10 +81,6 @@ export default function TrackItem({
     onPlay(track.uri);
   }
 
-  function handleRowClickMobile() {
-    onOpenPopover(track.id);
-  }
-
   return (
     <div
       ref={provided.innerRef}
@@ -99,13 +94,13 @@ export default function TrackItem({
       {/* Drag handle (desktop only) */}
       <div
         {...provided.dragHandleProps}
-        className="hidden cursor-grab text-[#6a6a6a] opacity-0 transition-opacity group-hover:opacity-100 md:block"
+        className="hidden cursor-grab text-sm text-[#6a6a6a] opacity-40 transition-opacity group-hover:opacity-100 md:block"
       >
-        &#x2807;
+        &#8645;
       </div>
 
       {/* Position number */}
-      <span className="w-6 text-right text-sm text-[#6a6a6a]">
+      <span className="w-6 text-center text-sm tabular-nums text-[#6a6a6a]">
         {track.position + 1}
       </span>
 
@@ -115,15 +110,20 @@ export default function TrackItem({
           className="hidden min-w-0 flex-1 cursor-pointer items-center gap-3 md:flex"
           onClick={handleRowClickDesktop}
         >
-          {albumArt ? (
-            <img
-              src={albumArt}
-              alt={track.album.name}
-              className="h-10 w-10 shrink-0 rounded object-cover"
-            />
-          ) : (
-            <div className="h-10 w-10 shrink-0 rounded bg-[#282828]" />
-          )}
+          <div className="relative h-10 w-10 shrink-0">
+            {albumArt ? (
+              <img
+                src={albumArt}
+                alt={track.album.name}
+                className="h-10 w-10 rounded object-cover transition-opacity group-hover:opacity-40"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded bg-[#282828]" />
+            )}
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-lg text-white opacity-0 transition-opacity group-hover:opacity-100">
+              &#9654;
+            </span>
+          </div>
 
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">{track.name}</p>
@@ -131,16 +131,11 @@ export default function TrackItem({
               {track.artists.map((a) => a.name).join(', ')}
             </p>
           </div>
-
-          <span className="shrink-0 text-base text-[#b3b3b3] opacity-0 transition-opacity group-hover:opacity-100">
-            &#9654;
-          </span>
         </div>
 
         <div
           ref={mobileRowRef}
-          className="relative flex min-w-0 flex-1 cursor-pointer items-center gap-3 md:hidden"
-          onClick={handleRowClickMobile}
+          className="relative flex min-w-0 flex-1 items-center gap-3 md:hidden"
         >
           {albumArt ? (
             <img
@@ -162,7 +157,7 @@ export default function TrackItem({
           {isPopoverOpen && (
             <div
               ref={popoverRef}
-              className={`absolute left-12 z-40 rounded-lg border border-[#404040] bg-[#282828] px-3 py-2 shadow-xl ${
+              className={`absolute left-12 z-40 flex min-w-[160px] flex-col rounded-lg border border-[#404040] bg-[#282828] py-1 shadow-xl ${
                 popoverPlacement === 'top'
                   ? 'bottom-full mb-1'
                   : 'top-full mt-1'
@@ -174,10 +169,40 @@ export default function TrackItem({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => onOpenPopover(null)}
-                className="whitespace-nowrap text-sm font-semibold text-[#1DB954] hover:underline"
+                className="whitespace-nowrap px-4 py-2 text-left text-sm font-semibold text-[#1DB954] hover:bg-[#3a3a3a]"
               >
                 Open in Spotify &#8599;
               </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoveModalOpen(true);
+                  onOpenPopover(null);
+                }}
+                className="cursor-pointer whitespace-nowrap border-none bg-transparent px-4 py-2 text-left text-sm text-white hover:bg-[#3a3a3a]"
+              >
+                Move
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleLock(track.id);
+                  onOpenPopover(null);
+                }}
+                className="cursor-pointer whitespace-nowrap border-none bg-transparent px-4 py-2 text-left text-sm text-white hover:bg-[#3a3a3a]"
+              >
+                {track.locked ? 'Unlock' : 'Lock'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onRemove(track.id);
+                  onOpenPopover(null);
+                }}
+                className="cursor-pointer whitespace-nowrap border-none bg-transparent px-4 py-2 text-left text-sm text-red-400 hover:bg-[#3a3a3a]"
+              >
+                Remove
+              </button>
             </div>
           )}
         </div>
@@ -188,35 +213,38 @@ export default function TrackItem({
         {formatDuration(track.durationMs)}
       </span>
 
-      {/* Move button (mobile only) */}
-      <button
-        onClick={() => setIsMoveModalOpen(true)}
-        className="cursor-pointer border-none bg-transparent p-1.5 text-[#b3b3b3] md:hidden"
-        aria-label="Move track"
-      >
-        &#8645;
-      </button>
+      {/* Lock + remove (desktop only) */}
+      <div className="hidden items-center gap-1 pl-3 md:flex">
+        <button
+          onClick={() => onToggleLock(track.id)}
+          className={`cursor-pointer border-none bg-transparent p-1.5 transition-colors ${
+            track.locked
+              ? 'text-[#1DB954]'
+              : 'text-[#b3b3b3] opacity-0 hover:text-white group-hover:opacity-100'
+          }`}
+          aria-label={track.locked ? 'Unlock track' : 'Lock track'}
+        >
+          {track.locked ? '🔒' : '🔓'}
+        </button>
 
-      {/* Lock button */}
-      <button
-        onClick={() => onToggleLock(track.id)}
-        className={`cursor-pointer border-none bg-transparent p-1.5 transition-colors ${
-          track.locked
-            ? 'text-[#1DB954]'
-            : 'text-[#b3b3b3] hover:text-white md:opacity-0 md:group-hover:opacity-100'
-        }`}
-        aria-label={track.locked ? 'Unlock track' : 'Lock track'}
-      >
-        {track.locked ? '🔒' : '🔓'}
-      </button>
+        <button
+          onClick={() => onRemove(track.id)}
+          className="cursor-pointer border-none bg-transparent p-1.5 text-[#b3b3b3] opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
+          aria-label="Remove track"
+        >
+          &#10005;
+        </button>
+      </div>
 
-      {/* Remove button */}
+      {/* Actions menu (mobile only) */}
       <button
-        onClick={() => onRemove(track.id)}
-        className="cursor-pointer border-none bg-transparent p-1.5 text-[#b3b3b3] transition-opacity hover:text-red-400 md:opacity-0 md:group-hover:opacity-100"
-        aria-label="Remove track"
+        ref={menuButtonRef}
+        type="button"
+        onClick={() => onOpenPopover(isPopoverOpen ? null : track.id)}
+        aria-label="Track actions"
+        className="cursor-pointer border-none bg-transparent p-1.5 text-lg leading-none text-[#b3b3b3] md:hidden"
       >
-        &#10005;
+        &#8942;
       </button>
 
       <MoveTrackModal
