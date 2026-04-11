@@ -133,6 +133,49 @@ birthday-playlist-analyzer/
 └── README.md
 ```
 
+## Deployment
+
+This repository ships with a `render.yaml` blueprint for one-click deployment to [Render.com](https://render.com). The blueprint provisions:
+
+- A free PostgreSQL database (`birthday-playlist-db`)
+- The Rails API as a web service (`birthday-playlist-api`)
+- The React client as a static site (`birthday-playlist`)
+
+### Step-by-step
+
+1. **Push the repo to GitHub.** Fork this repository (or push your own copy) to a GitHub account that Render can access.
+
+2. **Create a Render account** at [render.com](https://render.com) and connect your GitHub account.
+
+3. **Create a new Blueprint.** In the Render dashboard click **New +** then **Blueprint**, select this repository, and confirm. Render will read `render.yaml` and create the database, API, and static site automatically.
+
+4. **Set the secret environment variables.** Several variables in `render.yaml` are marked `sync: false` and must be filled in by hand from the Render dashboard before the first successful deploy.
+
+   On the **birthday-playlist-api** service:
+
+   | Variable | Value |
+   | --- | --- |
+   | `RAILS_MASTER_KEY` | Contents of `api/config/master.key` from your local checkout |
+   | `LOCKBOX_MASTER_KEY` | Generate locally with `ruby -rlockbox -e "puts Lockbox.generate_key"` (or `bin/rails runner 'puts Lockbox.generate_key'`) |
+   | `SPOTIFY_CLIENT_ID` | From your Spotify Developer Dashboard app |
+   | `SPOTIFY_CLIENT_SECRET` | From your Spotify Developer Dashboard app |
+   | `SPOTIFY_REDIRECT_URI` | `https://birthday-playlist-api.onrender.com/auth/spotify/callback` |
+   | `FRONTEND_URL` | `https://birthday-playlist.onrender.com` |
+
+   On the **birthday-playlist** static site:
+
+   | Variable | Value |
+   | --- | --- |
+   | `VITE_API_URL` | `https://birthday-playlist-api.onrender.com` |
+
+5. **Update the Spotify Developer Dashboard.** Add `https://birthday-playlist-api.onrender.com/auth/spotify/callback` as an allowed Redirect URI on your Spotify application.
+
+6. **Deploy.** Trigger a manual deploy on each service (or push a new commit). The first deploy will run `bundle install && bundle exec rails db:migrate` for the API and `npm install && npm run build` for the client.
+
+7. **Verify.** Visit `https://birthday-playlist.onrender.com`, sign in with Spotify, and confirm the OAuth round-trip succeeds.
+
+> **Note:** Render's free tier spins services down after periods of inactivity, so the first request after a quiet stretch may take ~30 seconds while the API cold-starts.
+
 ## License
 
 MIT
