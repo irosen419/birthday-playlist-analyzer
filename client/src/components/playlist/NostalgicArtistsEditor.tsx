@@ -59,7 +59,7 @@ function EraGroup({
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<SpotifyArtist[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

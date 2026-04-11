@@ -3,10 +3,8 @@ import type { GenerationConfig } from '../../hooks/useAutoSave';
 
 const MIN_RATIO = 10;
 const MAX_RATIO = 60;
-const RATIO_STEP = 5;
 const MIN_SONG_COUNT = 50;
 const MAX_SONG_COUNT = 200;
-const SONG_COUNT_STEP = 5;
 const TARGET_RATIO_SUM = 100;
 
 interface PlaylistConfigProps {
