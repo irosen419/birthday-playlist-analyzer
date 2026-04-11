@@ -37,7 +37,7 @@ export default function PlaylistHeader({
     : null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-6 border-b border-[#282828] pb-6">
       <div className="mb-4 flex items-center gap-4">
         <button
           onClick={() => navigate('/playlists')}
@@ -80,16 +80,15 @@ export default function PlaylistHeader({
         type="text"
         value={name}
         onChange={(e) => onNameChange(e.target.value)}
-        className="mb-4 w-full border-b border-transparent bg-transparent text-3xl font-bold text-white outline-none transition-colors focus:border-[#1DB954]"
+        className="mb-4 w-full border-b border-[#282828] bg-transparent text-3xl font-bold text-white outline-none transition-colors focus:border-[#1DB954]"
         placeholder="Playlist name"
       />
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
-        <div className="flex items-center gap-6">
-          <span className="text-sm text-[#b3b3b3]">{tracks.length} tracks</span>
-          <span className="text-sm text-[#b3b3b3]">
-            {formatTotalDuration(tracks)}
-          </span>
+        <div className="flex items-center gap-3 text-base text-[#b3b3b3]">
+          <span>{tracks.length} tracks</span>
+          <span aria-hidden="true" className="text-[#6a6a6a]">·</span>
+          <span>{formatTotalDuration(tracks)}</span>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:ml-auto">
