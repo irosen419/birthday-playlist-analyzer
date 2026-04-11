@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   DragDropContext,
   Droppable,
@@ -13,6 +14,7 @@ interface PlaylistTrackListProps {
   onPlay: (uri: string) => void;
   onToggleLock: (trackId: string) => void;
   onRemove: (trackId: string) => void;
+  onMove: (trackId: string, newPosition: number) => void;
   isGenerating?: boolean;
 }
 
@@ -22,8 +24,13 @@ export default function PlaylistTrackList({
   onPlay,
   onToggleLock,
   onRemove,
+  onMove,
   isGenerating = false,
 }: PlaylistTrackListProps) {
+  const [openPopoverTrackId, setOpenPopoverTrackId] = useState<string | null>(
+    null
+  );
+
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
     if (result.source.index === result.destination.index) return;
@@ -64,10 +71,15 @@ export default function PlaylistTrackList({
                 {(draggableProvided) => (
                   <TrackItem
                     track={track}
+                    index={index}
+                    totalTracks={tracks.length}
                     provided={draggableProvided}
+                    isPopoverOpen={openPopoverTrackId === track.id}
+                    onOpenPopover={setOpenPopoverTrackId}
                     onPlay={onPlay}
                     onToggleLock={onToggleLock}
                     onRemove={onRemove}
+                    onMove={onMove}
                   />
                 )}
               </Draggable>

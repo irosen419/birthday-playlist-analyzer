@@ -148,6 +148,26 @@ export default function PlaylistEditor() {
     []
   );
 
+  const handleMove = useCallback(
+    (trackId: string, newPosition: number) => {
+      setTracks((prev) => {
+        const currentIndex = prev.findIndex((t) => t.id === trackId);
+        if (currentIndex === -1) return prev;
+        const clampedTarget = Math.max(
+          0,
+          Math.min(newPosition, prev.length - 1)
+        );
+        if (clampedTarget === currentIndex) return prev;
+
+        const updated = [...prev];
+        const [moved] = updated.splice(currentIndex, 1);
+        updated.splice(clampedTarget, 0, moved);
+        return recalculatePositions(updated);
+      });
+    },
+    []
+  );
+
   const handleToggleLock = useCallback((trackId: string) => {
     setLockedTrackIds((prev) => {
       const next = new Set(prev);
@@ -241,8 +261,8 @@ export default function PlaylistEditor() {
         justPublished={justPublished}
       />
 
-      <div className="mb-6 flex items-center gap-4">
-        <label className="flex items-center gap-2 text-sm text-[#b3b3b3]">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-4">
+        <label className="flex items-center justify-center gap-2 rounded-full border border-[#404040] px-4 py-2 text-sm text-[#b3b3b3] sm:justify-start sm:rounded-none sm:border-0 sm:px-0 sm:py-0">
           Birth Year
           <input
             type="text"
@@ -252,7 +272,7 @@ export default function PlaylistEditor() {
               const val = e.target.value.replace(/\D/g, '').slice(0, 4);
               setBirthYearInput(val);
             }}
-            className="w-20 rounded-lg bg-[#282828] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-[#1DB954]"
+            className="w-12 bg-transparent text-center text-sm text-white outline-none sm:w-20 sm:rounded-lg sm:bg-[#282828] sm:px-3 sm:py-2 sm:text-left sm:focus:ring-1 sm:focus:ring-[#1DB954]"
           />
         </label>
 
@@ -279,6 +299,7 @@ export default function PlaylistEditor() {
         onPlay={playTrack}
         onToggleLock={handleToggleLock}
         onRemove={handleRemove}
+        onMove={handleMove}
         isGenerating={generateMutation.isPending}
       />
     </div>

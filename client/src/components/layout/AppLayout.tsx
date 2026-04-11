@@ -9,7 +9,9 @@ export default function AppLayout() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
         <Outlet />
       </main>
-      <PlayerBar />
+      <div className="hidden md:block">
+        <PlayerBar />
+      </div>
     </div>
   );
 }

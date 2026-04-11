@@ -84,19 +84,21 @@ export default function PlaylistHeader({
         placeholder="Playlist name"
       />
 
-      <div className="flex items-center gap-6">
-        <span className="text-sm text-[#b3b3b3]">{tracks.length} tracks</span>
-        <span className="text-sm text-[#b3b3b3]">
-          {formatTotalDuration(tracks)}
-        </span>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+        <div className="flex items-center gap-6">
+          <span className="text-sm text-[#b3b3b3]">{tracks.length} tracks</span>
+          <span className="text-sm text-[#b3b3b3]">
+            {formatTotalDuration(tracks)}
+          </span>
+        </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:ml-auto">
           {spotifyUrl && !justPublished && (
             <a
               href={spotifyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-full border border-[#1DB954] px-4 py-2 text-sm font-semibold text-[#1DB954] transition-colors hover:bg-[rgba(29,185,84,0.1)]"
+              className="rounded-full border border-[#1DB954] px-4 py-2 text-center text-sm font-semibold text-[#1DB954] transition-colors hover:bg-[rgba(29,185,84,0.1)]"
             >
               Open in Spotify &#8599;
             </a>
