@@ -201,6 +201,53 @@ RSpec.describe "Api::Playlists", type: :request do
 
       expect(response).to have_http_status(:not_found)
     end
+
+    context "with an oversized tracks payload" do
+      let(:playlist) { create(:playlist, user: user) }
+
+      def oversized_tracks(count)
+        Array.new(count) do |i|
+          {
+            spotify_id: "track_#{i}",
+            position: i + 1,
+            locked: false,
+            source: "favorite",
+            name: "Track #{i}",
+            artists: [{ id: "a#{i}", name: "Artist #{i}" }],
+            album: { name: "Album", images: [] },
+            duration_ms: 200_000,
+            popularity: 50,
+            preview_url: nil,
+            uri: "spotify:track:track_#{i}"
+          }
+        end
+      end
+
+      it "rejects payloads with more than 500 tracks" do
+        patch "/api/playlists/#{playlist.id}",
+          params: { tracks: oversized_tracks(501) },
+          as: :json
+
+        expect(response).to have_http_status(:payload_too_large)
+        expect(response.parsed_body).to eq("error" => "Too many tracks (max 500)")
+      end
+
+      it "does not persist any tracks when the payload is oversized" do
+        expect {
+          patch "/api/playlists/#{playlist.id}",
+            params: { tracks: oversized_tracks(501) },
+            as: :json
+        }.not_to change { playlist.reload.playlist_tracks.count }
+      end
+
+      it "accepts payloads with exactly 500 tracks" do
+        patch "/api/playlists/#{playlist.id}",
+          params: { tracks: oversized_tracks(500) },
+          as: :json
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
   end
 
   describe "DELETE /api/playlists/:id" do

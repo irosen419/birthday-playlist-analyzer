@@ -1,5 +1,7 @@
 module Api
   class PlaylistsController < ApplicationController
+    MAX_TRACKS_PER_UPDATE = 500
+
     wrap_parameters false
     before_action :authenticate_user!
     before_action :set_playlist, only: [:show, :update, :destroy, :generate, :publish]
@@ -26,6 +28,11 @@ module Api
 
     def update
       data = params[:playlist].present? ? params[:playlist] : params
+
+      if data[:tracks]&.length.to_i > MAX_TRACKS_PER_UPDATE
+        return render json: { error: "Too many tracks (max #{MAX_TRACKS_PER_UPDATE})" },
+                      status: :payload_too_large
+      end
 
       ActiveRecord::Base.transaction do
         attrs = {}

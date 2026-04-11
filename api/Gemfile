@@ -36,6 +36,9 @@ gem "thruster", require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors"
 
+# Throttling and request-level abuse protection
+gem "rack-attack"
+
 # Spotify API HTTP client
 gem "faraday"
 
