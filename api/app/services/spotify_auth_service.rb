@@ -9,6 +9,7 @@ class SpotifyAuthService
     playlist-modify-private
     playlist-read-private
     user-read-private
+    user-read-email
     streaming
     user-read-playback-state
     user-modify-playback-state
