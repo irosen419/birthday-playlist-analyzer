@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DraggableProvided } from '@hello-pangea/dnd';
 import type { PlaylistTrack } from '../../types';
 import MoveTrackModal from './MoveTrackModal';
@@ -15,6 +15,8 @@ interface TrackItemProps {
   onRemove: (trackId: string) => void;
   onMove: (trackId: string, newPosition: number) => void;
 }
+
+const ESTIMATED_POPOVER_HEIGHT = 60;
 
 function formatDuration(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
@@ -36,7 +38,11 @@ export default function TrackItem({
 }: TrackItemProps) {
   const albumArt = track.album.images[0]?.url;
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [popoverPlacement, setPopoverPlacement] = useState<'bottom' | 'top'>(
+    'bottom'
+  );
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const mobileRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isPopoverOpen) return;
@@ -57,6 +63,20 @@ export default function TrackItem({
       document.removeEventListener('touchstart', handleClickOutside);
     };
   }, [isPopoverOpen, onOpenPopover]);
+
+  useLayoutEffect(() => {
+    if (!isPopoverOpen || !mobileRowRef.current) return;
+
+    const rect = mobileRowRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    if (spaceBelow < ESTIMATED_POPOVER_HEIGHT && spaceAbove > spaceBelow) {
+      setPopoverPlacement('top');
+    } else {
+      setPopoverPlacement('bottom');
+    }
+  }, [isPopoverOpen]);
 
   function handleRowClickDesktop() {
     onPlay(track.uri);
@@ -118,6 +138,7 @@ export default function TrackItem({
         </div>
 
         <div
+          ref={mobileRowRef}
           className="relative flex min-w-0 flex-1 cursor-pointer items-center gap-3 md:hidden"
           onClick={handleRowClickMobile}
         >
@@ -141,7 +162,11 @@ export default function TrackItem({
           {isPopoverOpen && (
             <div
               ref={popoverRef}
-              className="absolute left-12 top-full z-40 mt-1 rounded-lg border border-[#404040] bg-[#282828] px-3 py-2 shadow-xl"
+              className={`absolute left-12 z-40 rounded-lg border border-[#404040] bg-[#282828] px-3 py-2 shadow-xl ${
+                popoverPlacement === 'top'
+                  ? 'bottom-full mb-1'
+                  : 'top-full mt-1'
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <a

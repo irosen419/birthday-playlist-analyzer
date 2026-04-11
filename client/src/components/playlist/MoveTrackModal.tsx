@@ -11,7 +11,6 @@ interface MoveTrackModalProps {
 }
 
 function clampPosition(value: number, totalTracks: number): number {
-  if (Number.isNaN(value)) return 1;
   if (value < 1) return 1;
   if (value > totalTracks) return totalTracks;
   return value;
@@ -48,6 +47,12 @@ export default function MoveTrackModal({
 
   if (!isOpen) return null;
 
+  const parsedPosition = parseInt(positionInput, 10);
+  const isInputValid =
+    Number.isInteger(parsedPosition) &&
+    parsedPosition >= 1 &&
+    parsedPosition <= totalTracks;
+
   function commitMove(rawOneIndexed: number) {
     const clamped = clampPosition(rawOneIndexed, totalTracks);
     onMove(clamped - 1);
@@ -55,8 +60,8 @@ export default function MoveTrackModal({
   }
 
   function handleConfirm() {
-    const parsed = parseInt(positionInput, 10);
-    commitMove(parsed);
+    if (!isInputValid) return;
+    commitMove(parsedPosition);
   }
 
   return createPortal(
@@ -104,7 +109,7 @@ export default function MoveTrackModal({
             value={positionInput}
             onChange={(e) => setPositionInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleConfirm();
+              if (e.key === 'Enter' && isInputValid) handleConfirm();
             }}
             className="w-full rounded-lg bg-[#282828] px-3 py-2 text-white outline-none focus:ring-1 focus:ring-[#1DB954]"
           />
@@ -121,7 +126,8 @@ export default function MoveTrackModal({
           <button
             type="button"
             onClick={handleConfirm}
-            className="cursor-pointer rounded-full bg-[#1DB954] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#1ed760] sm:flex-1"
+            disabled={!isInputValid}
+            className="cursor-pointer rounded-full bg-[#1DB954] px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
           >
             Move
           </button>
