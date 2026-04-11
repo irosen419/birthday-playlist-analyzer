@@ -47,11 +47,6 @@ class AuthController < ApplicationController
     redirect_to "#{frontend_url}#auth_token=#{token}", allow_other_host: true
   end
 
-  def logout
-    reset_session
-    render json: { message: "Logged out" }
-  end
-
   private
 
   def valid_state?

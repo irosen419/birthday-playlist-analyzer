@@ -188,19 +188,6 @@ RSpec.describe "Auth", type: :request do
     end
   end
 
-  describe "DELETE /auth/logout" do
-    let(:user) { create(:user) }
-
-    before { sign_in(user) }
-
-    it "returns success message" do
-      delete "/auth/logout"
-
-      expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["message"]).to eq("Logged out")
-    end
-  end
-
   private
 
   def extract_state_from(url)
