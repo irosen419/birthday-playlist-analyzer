@@ -79,11 +79,10 @@ RSpec.describe Playlist, type: :model do
       expect(playlist).to be_valid
     end
 
-    it 'is invalid when ratios do not sum to 1.0' do
+    it 'allows ratios that do not sum to 1.0 (validation happens on generate, not save)' do
       playlist = build(:playlist, favorites_ratio: 0.5, discovery_ratio: 0.5, era_hits_ratio: 0.5)
 
-      expect(playlist).not_to be_valid
-      expect(playlist.errors[:base]).to include(a_string_matching(/must sum to 100%/))
+      expect(playlist).to be_valid
     end
 
     it 'validates target_song_count is within range' do
