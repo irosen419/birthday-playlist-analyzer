@@ -27,12 +27,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    const params = new URLSearchParams(hash);
     const tokenFromUrl = params.get('auth_token');
 
     if (tokenFromUrl) {
       setAuthToken(tokenFromUrl);
-      window.history.replaceState({}, '', window.location.pathname);
+      window.history.replaceState(
+        {},
+        '',
+        window.location.pathname + window.location.search
+      );
     }
 
     getMe()

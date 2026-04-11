@@ -84,7 +84,7 @@ RSpec.describe "Auth", type: :request do
 
       expect(response).to have_http_status(:found)
       frontend = ENV["FRONTEND_URL"] || "http://localhost:5173"
-      expect(response.location).to match(%r{\A#{Regexp.escape(frontend)}\?auth_token=.+\z})
+      expect(response.location).to match(%r{\A#{Regexp.escape(frontend)}\#auth_token=.+\z})
     end
 
     it "redirects to custom frontend URL when ENV is set" do
@@ -95,7 +95,7 @@ RSpec.describe "Auth", type: :request do
 
       get "/auth/spotify/callback", params: { code: "auth_code", state: state }
 
-      expect(response.location).to start_with("https://myapp.com?auth_token=")
+      expect(response.location).to start_with("https://myapp.com#auth_token=")
     end
 
     it "generates a valid auth token in the redirect URL" do
@@ -132,7 +132,7 @@ RSpec.describe "Auth", type: :request do
           expect { complete_callback }.to change(User, :count).by(1)
 
           expect(response).to have_http_status(:found)
-          expect(response.location).to start_with("#{frontend_url}?auth_token=")
+          expect(response.location).to start_with("#{frontend_url}#auth_token=")
         end
       end
 
@@ -164,7 +164,7 @@ RSpec.describe "Auth", type: :request do
 
         it "allows the login" do
           expect { complete_callback }.to change(User, :count).by(1)
-          expect(response.location).to start_with("#{frontend_url}?auth_token=")
+          expect(response.location).to start_with("#{frontend_url}#auth_token=")
         end
       end
 
@@ -173,7 +173,7 @@ RSpec.describe "Auth", type: :request do
 
         it "allows the login" do
           expect { complete_callback }.to change(User, :count).by(1)
-          expect(response.location).to start_with("#{frontend_url}?auth_token=")
+          expect(response.location).to start_with("#{frontend_url}#auth_token=")
         end
       end
 
@@ -182,7 +182,7 @@ RSpec.describe "Auth", type: :request do
 
         it "matches case-insensitively and ignores surrounding whitespace" do
           expect { complete_callback }.to change(User, :count).by(1)
-          expect(response.location).to start_with("#{frontend_url}?auth_token=")
+          expect(response.location).to start_with("#{frontend_url}#auth_token=")
         end
       end
     end
@@ -209,7 +209,7 @@ RSpec.describe "Auth", type: :request do
   end
 
   def extract_auth_token_from(url)
-    query = URI.parse(url).query
-    Rack::Utils.parse_query(query)["auth_token"]
+    fragment = URI.parse(url).fragment
+    Rack::Utils.parse_query(fragment)["auth_token"]
   end
 end

@@ -44,7 +44,7 @@ class AuthController < ApplicationController
     token = AuthTokenService.encode(user.id)
     reset_session
 
-    redirect_to "#{frontend_url}?auth_token=#{token}", allow_other_host: true
+    redirect_to "#{frontend_url}#auth_token=#{token}", allow_other_host: true
   end
 
   def logout
