@@ -74,6 +74,34 @@ When adding a new item, use this shape:
 3. Optional: one-time dismissible banner on the playlist editor for non-Premium users explaining "Playback requires Spotify Premium — tap any track to open it in Spotify."
 4. Regression check: confirm Premium desktop still plays in-browser and Premium mobile still gets the popover fallback.
 
+### ⬜ Hoist `MoveTrackModal` to a single instance in `PlaylistEditor`
+
+**From:** PR #6 — Fix mobile UX in playlist editor
+**Area:** `client/src/components/playlist/PlaylistEditor.tsx`, `client/src/components/playlist/TrackItem.tsx`, `client/src/components/playlist/MoveTrackModal.tsx`
+**Why:** `MoveTrackModal` is currently rendered inside every `TrackItem`, so a 125-track playlist mounts 125 modals that all early-return `null`. It works, but you pay reconciliation + `useState`/`useEffect` setup per row, and every re-render of a row re-runs the modal's hooks. One instance at the editor level is cheaper and makes focus/aria work (below) easier to wire up.
+**Suggested approach:** Lift `isMoveModalOpen` into `PlaylistEditor` as `{ trackId, index } | null`. Pass an `onOpenMoveModal(trackId, index)` callback down to `TrackItem` alongside the existing `onMove`. Render one `<MoveTrackModal />` at the editor level, reading `trackName` / `currentIndex` / `totalTracks` from the `tracks` array using the stored `trackId`.
+
+### ⬜ Add a11y attributes + focus handling to `MoveTrackModal`
+
+**From:** PR #6 — Fix mobile UX in playlist editor
+**Area:** `client/src/components/playlist/MoveTrackModal.tsx`
+**Why:** The modal is missing `role="dialog"`, `aria-modal="true"`, and an `aria-labelledby` pointing at the "Move track" heading — screen readers won't announce it as a dialog. It also doesn't autofocus the numeric input on open or return focus to the triggering Move button on close, so keyboard users lose their place. Body scroll under the modal isn't locked either, which lets the playlist scroll behind the backdrop on iOS.
+**Suggested approach:** Add the three aria attributes to the inner container, autofocus the `<input>` in the existing `isOpen` effect, stash `document.activeElement` on open and `.focus()` it on close, and toggle `document.body.style.overflow = 'hidden'` for the lifetime of the open state. Keep the existing Escape/backdrop-click behavior.
+
+### ⬜ Extract a shared `TrackRowContent` sub-component in `TrackItem`
+
+**From:** PR #6 — Fix mobile UX in playlist editor
+**Area:** `client/src/components/playlist/TrackItem.tsx`
+**Why:** The desktop and mobile branches duplicate the album-art + title/artist block verbatim (`TrackItem.tsx:114–160`). Any future change to that layout has to be made in two places and it's easy to drift. The only meaningful difference between the two branches is the click handler and the trailing play-icon overlay.
+**Suggested approach:** Pull the art + text block into a small local component (or just an inline render helper inside `TrackItem`) and render it once, with the desktop/mobile wrappers only differing in their `onClick` and trailing children. Don't add a new file for it.
+
+### ⬜ Document the popover listener race + magic height constant
+
+**From:** PR #6 — Fix mobile UX in playlist editor
+**Area:** `client/src/components/playlist/TrackItem.tsx`
+**Why:** Two subtle things will trip up the next reader. (1) The outside-click `useEffect` attaches `mousedown`/`touchstart` *after* the popover opens, which is only safe because the synthetic click that opened it has already dispatched — a comment would save a future debugging session. (2) `ESTIMATED_POPOVER_HEIGHT = 60` is an unexplained magic number used to choose top vs. bottom placement; if the popover ever wraps to two lines the flip logic silently lies.
+**Suggested approach:** Add a one-line comment above the `useEffect` explaining the ordering, and a one-line comment next to `ESTIMATED_POPOVER_HEIGHT` noting it assumes a single-line popover. If the popover content ever grows, measure the actual rendered height via a ref instead.
+
 ---
 
 ## Done
