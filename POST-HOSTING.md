@@ -19,9 +19,12 @@ Things to address after the initial Render deployment. Ordered by priority.
 
 Throttled requests return a 429 JSON response. Disabled in the test environment to avoid bleeding counters across specs. Specs live at `/api/spec/requests/rate_limiting_spec.rb`.
 
-### ⬜ 2. Token exposure in `/api/token`
+### ⬜ 2. Token exposure
 
-The Web Playback SDK endpoint returns the raw Spotify access token to the browser. This is necessary for the SDK to stream audio but means the token is visible in:
+Two places tokens live in the browser now:
+
+1. **App auth token** (JWT) — stored in `localStorage` as `auth_token` and sent via `Authorization: Bearer` header on every API request. This is our own session token, not a Spotify token. Signed with `SECRET_KEY_BASE`, 30-day expiry.
+2. **Spotify access token** — returned from `/api/token` for the Web Playback SDK. Necessary for the SDK to stream audio but means the token is visible in:
 
 - Browser network tab
 - Browser memory / JS heap
@@ -59,17 +62,11 @@ Note: Spotify itself imposes a 25-user cap on development-mode apps, so all user
 - **Sentry** has a free tier for error tracking — wire it up in both Rails and React
 - Spotify API quota monitoring — log 429 rate limit responses from Spotify so we know when we're getting throttled
 
-### ⬜ 5. CSRF protection
+### ✅ 5. CSRF protection — not applicable (token auth)
 
-Rails API mode skips CSRF by default. With cookie-based auth we should consider adding it:
+App auth now uses Bearer tokens from localStorage instead of cookies, so CSRF is no longer a concern for the API. CSRF requires a cookie being automatically attached to a forged cross-site request — since we don't rely on cookies for API auth, there's nothing for an attacker's page to leverage.
 
-```ruby
-# ApplicationController
-include ActionController::RequestForgeryProtection
-protect_from_forgery with: :exception
-```
-
-And add CSRF tokens to the frontend axios calls. The `rack-cors` config with `credentials: true` helps prevent cross-site abuse, but an explicit CSRF token on mutations is stronger.
+The OAuth state parameter handles CSRF for the Spotify login round-trip separately.
 
 ### ⏳ 6. Input validation audit
 

@@ -4,16 +4,20 @@ A full-stack web application that analyzes your Spotify listening history and ge
 
 ## Features
 
-- **Spotify OAuth Authentication** -- Secure session-based authentication via Spotify OAuth 2.0
+- **Spotify OAuth Authentication** -- Secure token-based authentication via Spotify OAuth 2.0 (JWT + `Authorization: Bearer` header)
+- **Email Allowlist** -- Optional `ALLOWED_EMAILS` gate to restrict sign-up to a known list of Spotify accounts
 - **Music History Analysis** -- Analyzes your top artists and tracks across multiple time ranges
-- **Smart Playlist Generation** -- Creates party playlists using a blend of your favorites, genre discoveries, and era-appropriate hits
+- **Smart Playlist Generation** -- Creates party playlists using a configurable blend of favorites, genre discoveries, and era-appropriate hits
+- **Per-Playlist Config** -- Customize ratios and song count per playlist
 - **Nostalgic Artists** -- Specify artists from your formative years, high school, and college eras to influence playlist generation
 - **Drag-and-Drop Editor** -- Reorder, lock, add, and remove tracks with a full playlist editor
+- **Lock / Lock All / Shuffle** -- Lock tracks in place so regeneration works around them, or shuffle the unlocked ones
 - **Track Search** -- Search Spotify's catalog and add tracks directly to your playlist
-- **Publish to Spotify** -- Push your curated playlist directly to your Spotify account
-- **Integrated Playback** -- Preview tracks with the built-in Spotify Web Playback SDK player
+- **Publish to Spotify** -- Push your curated playlist directly to your Spotify account and jump to it in-app
+- **Integrated Playback** -- Preview tracks with the built-in Spotify Web Playback SDK player (Premium required)
 - **Auto-Save** -- All changes are automatically saved as you edit
-- **Responsive Design** -- Works on desktop and mobile devices
+- **Rate Limiting** -- `rack-attack` throttles abusive traffic
+- **Responsive Design** -- Works on desktop and mobile devices (mobile Safari included)
 
 ## Tech Stack
 
@@ -161,6 +165,7 @@ This repository ships with a `render.yaml` blueprint for one-click deployment to
    | `SPOTIFY_CLIENT_SECRET` | From your Spotify Developer Dashboard app |
    | `SPOTIFY_REDIRECT_URI` | `https://birthday-playlist-api.onrender.com/auth/spotify/callback` |
    | `FRONTEND_URL` | `https://birthday-playlist.onrender.com` |
+   | `ALLOWED_EMAILS` | Optional comma-separated allowlist (e.g. `you@example.com,friend@example.com`). Leave blank to allow any authenticated Spotify user. |
 
    On the **birthday-playlist** static site:
 
