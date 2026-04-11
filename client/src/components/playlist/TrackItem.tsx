@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { DraggableProvided } from '@hello-pangea/dnd';
 import type { PlaylistTrack } from '../../types';
 import MoveTrackModal from './MoveTrackModal';
@@ -119,6 +120,21 @@ export default function TrackItem({
     onPlay(track.uri);
   }
 
+  // @hello-pangea/dnd attaches an onClick to dragHandleProps at runtime to
+  // suppress clicks that follow a drag, but it isn't on the public type.
+  const { onClick: dragHandleOnClick, ...dragHandleRest } = (provided.dragHandleProps ??
+    {}) as { onClick?: (event: ReactMouseEvent<HTMLDivElement>) => void } & Record<
+    string,
+    unknown
+  >;
+
+  // Compose with the library's onClick so drag-click suppression still runs.
+  function handleDragHandleClick(event: ReactMouseEvent<HTMLDivElement>) {
+    dragHandleOnClick?.(event);
+    if (event.defaultPrevented) return;
+    setIsMoveModalOpen(true);
+  }
+
   return (
     <div
       ref={provided.innerRef}
@@ -131,8 +147,10 @@ export default function TrackItem({
     >
       {/* Drag handle (desktop only) */}
       <div
-        {...provided.dragHandleProps}
+        {...dragHandleRest}
+        onClick={handleDragHandleClick}
         className="hidden cursor-grab text-sm text-[#6a6a6a] opacity-40 transition-opacity group-hover:opacity-100 md:block"
+        title="Click or drag to move"
       >
         &#8645;
       </div>
