@@ -13,11 +13,6 @@ When adding an item, use this shape:
 
 ---
 
-## App cleanup
-
-### Remove legacy CLI app code
-The original Node/Express CLI app (`src/`, root-level `*.js` files, etc.) was replaced by the Rails API + React client monorepo. The `src/` directory has been removed, but other legacy files at the root level may remain (e.g., `analyze.js`, `create-playlist.js`, `index.js`, unused npm configs, stale references). These should be identified and cleaned up.
-
 ## Features
 
 ### Generation Config Before Every Playlist Creation
