@@ -7,7 +7,10 @@ module Api
     before_action :set_playlist, only: [:show, :update, :destroy, :generate, :publish]
 
     def index
-      playlists = current_user.playlists.includes(:playlist_tracks)
+      playlists = current_user.playlists
+        .includes(:playlist_tracks)
+        .joins(:playlist_tracks)
+        .distinct
 
       render json: playlists.map { |p| playlist_summary(p) }
     end

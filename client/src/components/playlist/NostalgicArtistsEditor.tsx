@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostalgicArtist } from '../../types';
 import {
@@ -171,8 +171,24 @@ function EraGroup({
   );
 }
 
-export default function NostalgicArtistsEditor() {
-  const [isOpen, setIsOpen] = useState(false);
+interface NostalgicArtistsEditorProps {
+  defaultExpanded?: boolean;
+}
+
+export interface NostalgicArtistsEditorHandle {
+  collapse: () => void;
+}
+
+const NostalgicArtistsEditor = forwardRef<
+  NostalgicArtistsEditorHandle,
+  NostalgicArtistsEditorProps
+>(function NostalgicArtistsEditor({ defaultExpanded = false }, ref) {
+  const [isOpen, setIsOpen] = useState(defaultExpanded);
+  useImperativeHandle(ref, () => ({
+    collapse() {
+      setIsOpen(false);
+    },
+  }));
   const queryClient = useQueryClient();
 
   const { data: artists = [] } = useQuery({
@@ -239,4 +255,6 @@ export default function NostalgicArtistsEditor() {
       )}
     </div>
   );
-}
+});
+
+export default NostalgicArtistsEditor;
