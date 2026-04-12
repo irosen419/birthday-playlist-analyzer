@@ -7,7 +7,11 @@ module Api
     before_action :set_playlist, only: [:show, :update, :destroy, :generate, :publish]
 
     def index
-      playlists = current_user.playlists.includes(:playlist_tracks)
+      playlists = current_user.playlists
+        .includes(:playlist_tracks)
+        .joins(:playlist_tracks)
+        .distinct
+        .order(created_at: :asc)
 
       render json: playlists.map { |p| playlist_summary(p) }
     end
@@ -56,7 +60,7 @@ module Api
 
     def generate
       birth_year = params[:birth_year]&.to_i || @playlist.effective_birth_year
-      locked_track_ids = params[:locked_track_ids] || []
+      locked_track_ids = Array(params[:locked_track_ids])
       config = @playlist.generation_config
 
       ratio_sum = config[:favorites_ratio] + config[:discovery_ratio] + config[:era_hits_ratio]
@@ -79,7 +83,14 @@ module Api
         era_hits_ratio: config[:era_hits_ratio]
       )
 
-      render json: result
+      ActiveRecord::Base.transaction do
+        persist_generated_tracks(result[:tracks] || [], locked_track_ids)
+      end
+
+      render json: playlist_detail(@playlist.reload)
+    rescue ActiveRecord::ActiveRecordError => e
+      Rails.logger.error("[generate] persistence failed: #{e.class}: #{e.message}\n#{e.backtrace.first(10).join("\n")}")
+      render json: { error: "Failed to persist generated playlist: #{e.message}" }, status: :internal_server_error
     end
 
     def publish
@@ -151,6 +162,64 @@ module Api
 
       playlist.as_json(only: SERIALIZABLE_FIELDS)
         .merge("tracks" => tracks)
+    end
+
+    def persist_generated_tracks(generated_tracks, locked_spotify_ids)
+      locked_set = locked_spotify_ids.to_set
+      locked_pts = @playlist.playlist_tracks.includes(:track).select { |pt| locked_set.include?(pt.track.spotify_id) }
+      locked_by_position = locked_pts.index_by(&:position)
+
+      seen_ids = locked_pts.map { |pt| pt.track.spotify_id }.to_set
+      deduped = generated_tracks.each_with_object([]) do |t, acc|
+        id = t["id"] || t[:id]
+        next if id.blank? || seen_ids.include?(id)
+        seen_ids << id
+        acc << t
+      end
+
+      @playlist.playlist_tracks.where.not(id: locked_pts.map(&:id)).destroy_all
+
+      total = locked_pts.size + deduped.size
+      new_idx = 0
+      (0...total).each do |pos|
+        if locked_by_position[pos]
+          locked_by_position[pos].update!(position: pos)
+          next
+        end
+
+        track_data = deduped[new_idx]
+        new_idx += 1
+        next unless track_data
+
+        track = Track.upsert_from_spotify(generator_track_to_symbols(track_data))
+        @playlist.playlist_tracks.create!(
+          track: track,
+          position: pos,
+          locked: false,
+          source: normalize_source(track_data["source"])
+        )
+      end
+    end
+
+    def generator_track_to_symbols(data)
+      {
+        id: data["id"],
+        name: data["name"],
+        artists: (data["artists"] || []).map { |a| { name: a["name"] } },
+        album: {
+          name: data.dig("album", "name"),
+          images: data.dig("album", "images") || []
+        }.transform_values { |v| v.is_a?(Array) ? v.map { |img| { url: img["url"] } } : v },
+        duration_ms: data["duration_ms"],
+        popularity: data["popularity"],
+        preview_url: data["preview_url"],
+        uri: data["uri"]
+      }
+    end
+
+    def normalize_source(source)
+      valid = PlaylistTrack.sources.keys
+      valid.include?(source) ? source : "favorite"
     end
 
     def replace_tracks(tracks_data)

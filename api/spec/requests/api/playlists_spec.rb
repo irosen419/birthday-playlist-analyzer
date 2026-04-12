@@ -29,6 +29,46 @@ RSpec.describe "Api::Playlists", type: :request do
       names = response.parsed_body.map { |p| p["name"] }
       expect(names).not_to include("Not Mine")
     end
+
+    it "excludes playlists with zero tracks" do
+      empty = create(:playlist, user: user, name: "Empty Playlist")
+      populated = create(:playlist, user: user, name: "Has Tracks")
+      create(:playlist_track, playlist: populated, track: create(:track), position: 1)
+
+      get "/api/playlists"
+
+      names = response.parsed_body.map { |p| p["name"] }
+      expect(names).to include("Has Tracks")
+      expect(names).not_to include("Empty Playlist")
+      expect(response.parsed_body.map { |p| p["id"] }).not_to include(empty.id)
+    end
+
+    it "preserves ordering when filtering empty playlists" do
+      older = create(:playlist, user: user, name: "Older", created_at: 2.days.ago)
+      create(:playlist_track, playlist: older, track: create(:track), position: 1)
+      create(:playlist, user: user, name: "Empty Middle", created_at: 1.day.ago)
+      newer = create(:playlist, user: user, name: "Newer", created_at: 1.hour.ago)
+      create(:playlist_track, playlist: newer, track: create(:track), position: 1)
+
+      get "/api/playlists"
+
+      names = response.parsed_body.map { |p| p["name"] }
+      expect(names).to eq(["Older", "Newer"])
+    end
+
+    it "returns playlists in created_at ascending order regardless of insertion order" do
+      newer = create(:playlist, user: user, name: "Newer", created_at: 1.hour.ago)
+      create(:playlist_track, playlist: newer, track: create(:track), position: 1)
+      older = create(:playlist, user: user, name: "Older", created_at: 2.days.ago)
+      create(:playlist_track, playlist: older, track: create(:track), position: 1)
+      middle = create(:playlist, user: user, name: "Middle", created_at: 1.day.ago)
+      create(:playlist_track, playlist: middle, track: create(:track), position: 1)
+
+      get "/api/playlists"
+
+      names = response.parsed_body.map { |p| p["name"] }
+      expect(names).to eq(["Older", "Middle", "Newer"])
+    end
   end
 
   describe "GET /api/playlists/:id" do
@@ -311,16 +351,81 @@ RSpec.describe "Api::Playlists", type: :request do
       allow_any_instance_of(PlaylistGeneratorService).to receive(:generate).and_return(generate_result)
     end
 
-    it "returns generated tracks without saving to database" do
+    it "persists generated tracks and returns them in the playlist detail response" do
       post "/api/playlists/#{playlist.id}/generate",
         params: { birth_year: 1991, locked_track_ids: [] },
         as: :json
 
       expect(response).to have_http_status(:ok)
       body = response.parsed_body
-      expect(body["tracks"]).to be_present
-      expect(body["stats"]).to be_present
-      expect(playlist.reload.playlist_tracks.count).to eq(0)
+      expect(body["id"]).to eq(playlist.id)
+      expect(body["tracks"].length).to eq(1)
+      expect(body["tracks"].first["spotify_id"]).to eq("gen1")
+      expect(body["tracks"].first["position"]).to eq(0)
+      expect(body["tracks"].first["source"]).to eq("favorite")
+
+      playlist.reload
+      expect(playlist.playlist_tracks.count).to eq(1)
+      pt = playlist.playlist_tracks.first
+      expect(pt.track.spotify_id).to eq("gen1")
+      expect(pt.position).to eq(0)
+      expect(pt.source).to eq("favorite")
+    end
+
+    it "preserves locked tracks at their original positions and merges new tracks around them" do
+      locked_track_a = create(:track, spotify_id: "locked_a", name: "Locked A")
+      locked_track_b = create(:track, spotify_id: "locked_b", name: "Locked B")
+      create(:playlist_track, playlist: playlist, track: locked_track_a, position: 0, locked: true, source: :manual)
+      create(:playlist_track, playlist: playlist, track: locked_track_b, position: 2, locked: true, source: :favorite)
+
+      multi_generated = [
+        {
+          "id" => "new1", "name" => "New One",
+          "artists" => [{ "id" => "a1", "name" => "A1" }],
+          "album" => { "name" => "Alb", "images" => [] },
+          "duration_ms" => 200_000, "uri" => "spotify:track:new1",
+          "popularity" => 70, "source" => "favorite"
+        },
+        {
+          "id" => "new2", "name" => "New Two",
+          "artists" => [{ "id" => "a2", "name" => "A2" }],
+          "album" => { "name" => "Alb", "images" => [] },
+          "duration_ms" => 200_000, "uri" => "spotify:track:new2",
+          "popularity" => 70, "source" => "genre_discovery"
+        }
+      ]
+      allow_any_instance_of(PlaylistGeneratorService).to receive(:generate).and_return(
+        generate_result.merge(tracks: multi_generated)
+      )
+
+      post "/api/playlists/#{playlist.id}/generate",
+        params: { birth_year: 1991, locked_track_ids: %w[locked_a locked_b] },
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      playlist.reload
+      ordered = playlist.playlist_tracks.order(:position).map { |pt| [pt.position, pt.track.spotify_id, pt.locked, pt.source] }
+      expect(ordered).to eq([
+        [0, "locked_a", true, "manual"],
+        [1, "new1", false, "favorite"],
+        [2, "locked_b", true, "favorite"],
+        [3, "new2", false, "genre_discovery"]
+      ])
+    end
+
+    it "replaces previous non-locked tracks" do
+      old_track = create(:track, spotify_id: "old_unlocked")
+      create(:playlist_track, playlist: playlist, track: old_track, position: 0, locked: false, source: :favorite)
+
+      post "/api/playlists/#{playlist.id}/generate",
+        params: { birth_year: 1991, locked_track_ids: [] },
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      playlist.reload
+      spotify_ids = playlist.playlist_tracks.order(:position).map { |pt| pt.track.spotify_id }
+      expect(spotify_ids).to eq(["gen1"])
+      expect(spotify_ids).not_to include("old_unlocked")
     end
 
     it "passes locked track count to determine target_count" do

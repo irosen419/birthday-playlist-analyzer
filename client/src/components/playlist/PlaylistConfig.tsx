@@ -33,11 +33,14 @@ const INITIAL_TOUCH_TIMESTAMPS: TouchTimestamps = {
 
 export interface PlaylistConfigHandle {
   commitPendingValues: () => Partial<GenerationConfig>;
+  collapse: () => void;
 }
 
 interface PlaylistConfigProps {
   config: GenerationConfig;
   onChange: (config: GenerationConfig) => void;
+  defaultExpanded?: boolean;
+  highlight?: boolean;
 }
 
 function toPercent(ratio: number): number {
@@ -57,8 +60,8 @@ export interface InputCommitHandle {
 }
 
 const PlaylistConfig = forwardRef<PlaylistConfigHandle, PlaylistConfigProps>(
-  function PlaylistConfig({ config, onChange }, ref) {
-    const [isOpen, setIsOpen] = useState(false);
+  function PlaylistConfig({ config, onChange, defaultExpanded = false, highlight = false }, ref) {
+    const [isOpen, setIsOpen] = useState(defaultExpanded);
     const [lastTouchedAt, setLastTouchedAt] = useState<TouchTimestamps>(
       INITIAL_TOUCH_TIMESTAMPS
     );
@@ -84,6 +87,9 @@ const PlaylistConfig = forwardRef<PlaylistConfigHandle, PlaylistConfigProps>(
           overrides.targetSongCount = songCountRef.current.commit();
         }
         return overrides;
+      },
+      collapse() {
+        setIsOpen(false);
       },
     }));
 
@@ -143,7 +149,11 @@ const PlaylistConfig = forwardRef<PlaylistConfigHandle, PlaylistConfigProps>(
     }, [config, lastTouchedAt, onChange]);
 
     return (
-      <div className="mb-6 rounded-xl bg-[#181818]">
+      <div
+        className={`mb-6 rounded-xl bg-[#181818] ${
+          highlight ? 'ring-1 ring-[#1DB954]/40 bg-[#1c1c1c]' : ''
+        }`}
+      >
         <button
           onClick={() => setIsOpen((prev) => !prev)}
           className="flex w-full cursor-pointer items-center justify-between border-none bg-transparent px-6 py-4 text-left"
