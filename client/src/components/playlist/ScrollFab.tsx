@@ -29,16 +29,27 @@ export default function ScrollFab() {
   }, []);
 
   useEffect(() => {
+    let rafId: number | null = null;
+
+    const throttledUpdate = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateState();
+      });
+    };
+
     updateState();
-    window.addEventListener('scroll', updateState, { passive: true });
-    window.addEventListener('resize', updateState, { passive: true });
+    window.addEventListener('scroll', throttledUpdate, { passive: true });
+    window.addEventListener('resize', throttledUpdate, { passive: true });
 
     const interval = setInterval(updateState, 1000);
 
     return () => {
-      window.removeEventListener('scroll', updateState);
-      window.removeEventListener('resize', updateState);
+      window.removeEventListener('scroll', throttledUpdate);
+      window.removeEventListener('resize', throttledUpdate);
       clearInterval(interval);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [updateState]);
 
