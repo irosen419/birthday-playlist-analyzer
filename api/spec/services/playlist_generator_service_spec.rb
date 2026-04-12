@@ -210,6 +210,46 @@ RSpec.describe PlaylistGeneratorService do
         end
       end
 
+      it "enforces MAX_PER_ARTIST in reconciliation backfill" do
+        dominator_id = "dominator_artist"
+        dominated_tracks = (1..20).map do |i|
+          make_track.call(
+            id: "dom_#{i}",
+            name: "Dominator Track #{i}",
+            artist_id: dominator_id,
+            artist_name: "Dominator",
+            popularity: 90
+          ).merge("total_weight" => 3.0 - (i * 0.1))
+        end
+
+        dominated_analysis = {
+          tracks: { ranked_tracks: dominated_tracks },
+          artists: { ranked_artists: [] }
+        }
+
+        # Starve discovery and era_hits so reconciliation must kick in
+        allow(spotify_client).to receive(:search).and_return({
+          "tracks" => { "items" => [] },
+          "artists" => { "items" => [] }
+        })
+        allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+
+        result = generator.generate(
+          dominated_analysis,
+          birth_year: 1991,
+          target_count: 15,
+          favorites_ratio: 0.2,
+          discovery_ratio: 0.4,
+          era_hits_ratio: 0.4
+        )
+
+        dominator_tracks = result[:tracks].select do |t|
+          t.dig("artists", 0, "id") == dominator_id
+        end
+
+        expect(dominator_tracks.length).to be <= described_class::MAX_PER_ARTIST
+      end
+
       it "returns fewer tracks only when supply is genuinely exhausted" do
         starved_analysis = {
           tracks: {

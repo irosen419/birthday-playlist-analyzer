@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlaylistTrack, Track } from '../../types';
@@ -17,6 +17,7 @@ import PlaylistTrackList from './PlaylistTrackList';
 import RegenerateButton from './RegenerateButton';
 import NostalgicArtistsEditor from './NostalgicArtistsEditor';
 import PlaylistConfig from './PlaylistConfig';
+import type { PlaylistConfigHandle } from './PlaylistConfig';
 import SearchBar from '../search/SearchBar';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -30,6 +31,7 @@ export default function PlaylistEditor() {
   const queryClient = useQueryClient();
   const { playTrack } = usePlayer();
   const { user } = useAuth();
+  const configRef = useRef<PlaylistConfigHandle>(null);
 
   const { data: playlist, isLoading } = useQuery({
     queryKey: ['playlist', playlistId],
@@ -285,6 +287,7 @@ export default function PlaylistEditor() {
           isGenerating={generateMutation.isPending}
           ratiosValid={ratiosValid}
           onRegenerate={async () => {
+            configRef.current?.commitPendingValues();
             await flushSave();
             generateMutation.mutate();
           }}
@@ -294,7 +297,7 @@ export default function PlaylistEditor() {
         />
       </div>
 
-      <PlaylistConfig config={generationConfig} onChange={setGenerationConfig} />
+      <PlaylistConfig ref={configRef} config={generationConfig} onChange={setGenerationConfig} />
 
       <NostalgicArtistsEditor />
 

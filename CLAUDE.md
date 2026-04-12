@@ -192,6 +192,7 @@ Push to `master` → Render auto-deploys both services. First request after idle
 - **Before committing** any frontend change, run `cd client && npx tsc -b` — Vite's production build on Render fails on type errors, unused imports, etc.
 - **Commit etiquette:** branch for non-trivial features (pattern: `feature/<name>`), merge with `--no-ff`, delete the branch after merge. Straight-to-master is fine for small fixes.
 - **Before touching recently-reviewed code**, skim `docs/PR-FOLLOWUPS.md` — it tracks concrete items a reviewer flagged but didn't block the PR on. If what you're about to work on overlaps an entry there, consider closing the entry at the same time.
+- **PR review tracking**: When reviewing a PR, create (or update) `docs/PR-REVIEW-{number}.md` to track findings, decisions, and deferred items across review rounds. On subsequent reviews of the same PR, check the existing doc to verify previously deferred items are still intentionally deferred. Delete the doc when the PR is merged. If docs from already-merged PRs exist, delete those too.
 - **Memory files at `~/.claude/projects/-Users-irosen419-code-birthday-playlist-analyzer/memory/`** auto-load every session and complement this file with user-specific context (profile, preferences, running feature roadmap).
 
 ---
@@ -201,6 +202,7 @@ Push to `master` → Render auto-deploys both services. First request after idle
 - **`docs/PLAN.md`** — the original full-rewrite implementation plan with the complete database schema, phase-by-phase breakdown, and file structure. Historical reference; don't use it as an up-to-date source.
 - **`docs/POST-HOSTING.md`** — security/hardening checklist with current status. Has both "done" items (rate limiting, allowlist, Dependabot, payload cap, CSRF/token auth) and open items (Sentry, CSP, DB backups, field length validation).
 - **`docs/IMPLEMENTATION_SUMMARY.md`** — historical summary of the Rails/React rewrite.
+- **`docs/PR-REVIEW-{N}.md`** — live review tracker for an open PR. Created on first review, updated on re-reviews, deleted on merge. Check before acting on review comments to see if something was already considered.
 - **`docs/PR-FOLLOWUPS.md`** — follow-up work surfaced by code reviews that wasn't in-scope for the PR itself. Check here before starting work that touches recently-reviewed code.
 - **`docs/WISHLIST.md`** — nice-to-have features and ideas that aren't scheduled. Lower priority than `PR-FOLLOWUPS.md`.
 - **`README.md`** — user-facing project description, setup instructions, deployment walkthrough.

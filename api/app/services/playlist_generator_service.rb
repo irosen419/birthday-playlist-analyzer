@@ -187,11 +187,21 @@ class PlaylistGeneratorService
     shortfall = target_count - all_tracks.length
     return { tracks: all_tracks, extras: [] } if shortfall.zero?
 
-    extras = collect_overfetch_extras(ranked_tracks, shortfall, used_ids)
+    artist_counts = build_artist_counts(all_tracks)
+    extras = collect_overfetch_extras(ranked_tracks, shortfall, used_ids, artist_counts)
     { tracks: all_tracks + extras, extras: extras }
   end
 
-  def collect_overfetch_extras(ranked_tracks, needed, used_ids)
+  def build_artist_counts(tracks)
+    counts = Hash.new(0)
+    tracks.each do |track|
+      artist_id = track.dig("artists", 0, "id")
+      counts[artist_id] += 1
+    end
+    counts
+  end
+
+  def collect_overfetch_extras(ranked_tracks, needed, used_ids, artist_counts)
     extras = []
 
     ranked_tracks.each do |track|
@@ -199,8 +209,12 @@ class PlaylistGeneratorService
       next if used_ids.include?(track["id"])
       next if duplicate_signature?(track)
 
+      artist_id = track.dig("artists", 0, "id")
+      next if artist_counts[artist_id] >= MAX_PER_ARTIST
+
       extras << track.merge("source" => "reconciliation")
       mark_seen(track, used_ids)
+      artist_counts[artist_id] += 1
     end
 
     extras
