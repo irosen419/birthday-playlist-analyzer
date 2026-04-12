@@ -199,7 +199,7 @@ class PlaylistGeneratorService
       next if used_ids.include?(track["id"])
       next if duplicate_signature?(track)
 
-      extras << track.merge("source" => "favorite")
+      extras << track.merge("source" => "reconciliation")
       mark_seen(track, used_ids)
     end
 

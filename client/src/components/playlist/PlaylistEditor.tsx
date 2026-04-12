@@ -9,6 +9,7 @@ import {
 } from '../../api/playlists';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import type { GenerationConfig } from '../../hooks/useAutoSave';
+import { areRatiosValid } from '../../lib/ratioValidation';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import PlaylistHeader from './PlaylistHeader';
@@ -85,9 +86,7 @@ export default function PlaylistEditor() {
 
   const { isSaving, justSaved, flushSave } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
 
-  const ratiosValid = Math.round(generationConfig.favoritesRatio * 100) +
-    Math.round(generationConfig.discoveryRatio * 100) +
-    Math.round(generationConfig.eraHitsRatio * 100) === 100;
+  const ratiosValid = areRatiosValid(generationConfig);
 
   const generateMutation = useMutation({
     mutationFn: () =>

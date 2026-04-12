@@ -32,7 +32,7 @@ export interface Track {
   previewUrl?: string;
 }
 
-export type TrackSource = 'favorite' | 'genre_discovery' | 'era_hit' | 'manual';
+export type TrackSource = 'favorite' | 'genre_discovery' | 'era_hit' | 'manual' | 'reconciliation';
 
 export interface PlaylistTrack extends Track {
   position: number;

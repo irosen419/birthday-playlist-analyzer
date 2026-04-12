@@ -178,6 +178,38 @@ RSpec.describe PlaylistGeneratorService do
         expect(result[:tracks].length).to eq(result[:tracks].map { |t| t["id"] }.uniq.length)
       end
 
+      it "tags backfill tracks with source 'reconciliation'" do
+        allow(spotify_client).to receive(:search) do |args|
+          if args[:query].to_s.include?("year:")
+            { "tracks" => { "items" => [] } }
+          else
+            {
+              "tracks" => {
+                "items" => (1..5).map do |i|
+                  make_track.call(
+                    id: "search_#{SecureRandom.hex(4)}_#{i}",
+                    name: "Search Result #{i}",
+                    artist_id: "new_artist_#{i + 100}",
+                    popularity: 70
+                  )
+                end
+              },
+              "artists" => { "items" => [] }
+            }
+          end
+        end
+
+        result = generator.generate(analysis_data, birth_year: 1991, target_count: 30)
+
+        backfill_tracks = result[:tracks].select { |t| t["source"] == "reconciliation" }
+        non_backfill_sources = result[:tracks].reject { |t| t["source"] == "reconciliation" }.map { |t| t["source"] }
+
+        expect(backfill_tracks).not_to be_empty
+        non_backfill_sources.each do |source|
+          expect(source).not_to eq("reconciliation")
+        end
+      end
+
       it "returns fewer tracks only when supply is genuinely exhausted" do
         starved_analysis = {
           tracks: {

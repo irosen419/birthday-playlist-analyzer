@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { GenerationConfig } from '../../hooks/useAutoSave';
+import { areRatiosValid } from '../../lib/ratioValidation';
 
 const MIN_RATIO = 0;
 const MAX_RATIO = 100;
@@ -37,14 +38,6 @@ function toRatio(percent: number): number {
   return percent / 100;
 }
 
-function ratioSumIsValid(
-  favorites: number,
-  discovery: number,
-  eraHits: number
-): boolean {
-  return favorites + discovery + eraHits === TARGET_RATIO_SUM;
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -62,11 +55,7 @@ export default function PlaylistConfig({
   const discoveryPercent = toPercent(config.discoveryRatio);
   const eraHitsPercent = toPercent(config.eraHitsRatio);
   const currentSum = favoritesPercent + discoveryPercent + eraHitsPercent;
-  const isValid = ratioSumIsValid(
-    favoritesPercent,
-    discoveryPercent,
-    eraHitsPercent
-  );
+  const isValid = areRatiosValid(config);
 
   const updateConfig = useCallback(
     (updates: Partial<GenerationConfig>) => {
