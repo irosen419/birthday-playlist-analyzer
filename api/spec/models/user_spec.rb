@@ -45,25 +45,11 @@ RSpec.describe User, type: :model do
     end
   end
 
-  describe '#seed_default_nostalgic_artists' do
-    it 'creates default nostalgic artists after user creation' do
+  describe 'nostalgic artists on creation' do
+    it 'does not seed any nostalgic artists on creation' do
       user = create(:user)
 
-      expect(user.nostalgic_artists.count).to eq(5)
-
-      expected_names = ['NSYNC', 'Backstreet Boys', 'Smash Mouth', 'Britney Spears', 'Christina Aguilera']
-      actual_names = user.nostalgic_artists.pluck(:name).sort
-      expect(actual_names).to eq(expected_names.sort)
-
-      user.nostalgic_artists.each do |artist|
-        expect(artist.era).to eq('formative')
-      end
-    end
-
-    it 'does not duplicate artists when called again' do
-      user = create(:user)
-
-      expect { user.send(:seed_default_nostalgic_artists) }.not_to change { user.nostalgic_artists.count }
+      expect(user.nostalgic_artists.count).to eq(0)
     end
   end
 end

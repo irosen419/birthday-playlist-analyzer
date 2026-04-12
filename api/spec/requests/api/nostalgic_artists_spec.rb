@@ -7,11 +7,13 @@ RSpec.describe "Api::NostalgicArtists", type: :request do
 
   describe "GET /api/nostalgic_artists" do
     it "returns the current user's nostalgic artists" do
+      create(:nostalgic_artist, user: user, name: "Destiny's Child", era: "formative")
+
       get "/api/nostalgic_artists"
 
       expect(response).to have_http_status(:ok)
       names = response.parsed_body.map { |a| a["name"] }
-      expect(names).to include("NSYNC")
+      expect(names).to include("Destiny's Child")
     end
 
     it "does not return other users' artists" do
