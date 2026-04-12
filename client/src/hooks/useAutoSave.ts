@@ -24,7 +24,7 @@ export function useAutoSave(
   const isInitialRender = useRef(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const saveFnRef = useRef<(() => Promise<void>) | null>(null);
+  const saveFnRef = useRef<((overrides?: Partial<GenerationConfig>) => Promise<void>) | null>(null);
   const inflightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
@@ -37,15 +37,18 @@ export function useAutoSave(
 
     clearTimeout(timerRef.current);
 
-    const doSave = async () => {
+    const doSave = async (overrides?: Partial<GenerationConfig>) => {
       saveFnRef.current = null;
       setSaving(true);
       try {
+        const mergedConfig = overrides
+          ? { ...generationConfig, ...overrides }
+          : generationConfig;
         const savePromise = updatePlaylist(playlistId, {
           name,
           tracks,
           birthYear,
-          ...generationConfig,
+          ...mergedConfig,
         });
         inflightRef.current = savePromise.then(() => {}).catch(() => {});
         await savePromise;
@@ -70,11 +73,11 @@ export function useAutoSave(
     return () => clearTimeout(timerRef.current);
   }, [playlistId, name, tracks, birthYear, generationConfig]);
 
-  const flushSave = useCallback(async () => {
+  const flushSave = useCallback(async (overrides?: Partial<GenerationConfig>) => {
     clearTimeout(timerRef.current);
     const pending = saveFnRef.current;
     if (pending) {
-      await pending();
+      await pending(overrides);
     } else if (inflightRef.current) {
       await inflightRef.current;
     }

@@ -30,3 +30,19 @@ Tracks review findings across review rounds. Deleted on merge.
 | 5 | `onTouch` resets idle window on every keystroke | Intended behavior — idle means "stopped typing" |
 | 6 | "Max is 100" warning on ratio inputs is noise since sum-to-100 is the real constraint | Low harm, provides immediate per-field feedback; keep |
 | 7 | No migration needed but new enum value surfaces in `.sources.keys` | Confirmed no code iterates sources dynamically; safe |
+
+---
+
+## Review Round 2 (2026-04-11)
+
+### New findings
+
+| # | Finding | Severity | Status |
+|---|---------|----------|--------|
+| 11 | **`flushSave` stale closure race is confirmed valid**: `commitPendingValues()` calls `setGenerationConfig()` (React state), but React batches the update — no re-render happens before `flushSave()` reads `saveFnRef.current`. The closure in `saveFnRef` still captures the *old* config. Two failure modes: (a) stale save fires with old values, (b) `saveFnRef` is null so no save fires at all before `generateMutation.mutate()`. Fix: bypass React's render cycle — have `commitPendingValues` return the committed values and pass them directly to a save call, or have `flushSave` accept an explicit payload. | Medium | Open — needs fix before merge |
+
+### Acted on (from Round 1 deferred items)
+
+| # | Finding | Action |
+|---|---------|--------|
+| 8 | WISHLIST entries for bugs this PR fixes | Removed the two "Bugs" entries from WISHLIST.md |

@@ -32,7 +32,7 @@ const INITIAL_TOUCH_TIMESTAMPS: TouchTimestamps = {
 };
 
 export interface PlaylistConfigHandle {
-  commitPendingValues: () => void;
+  commitPendingValues: () => Partial<GenerationConfig>;
 }
 
 interface PlaylistConfigProps {
@@ -53,7 +53,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 export interface InputCommitHandle {
-  commit: () => void;
+  commit: () => number;
 }
 
 const PlaylistConfig = forwardRef<PlaylistConfigHandle, PlaylistConfigProps>(
@@ -69,11 +69,21 @@ const PlaylistConfig = forwardRef<PlaylistConfigHandle, PlaylistConfigProps>(
     const songCountRef = useRef<InputCommitHandle>(null);
 
     useImperativeHandle(ref, () => ({
-      commitPendingValues() {
-        favoritesRef.current?.commit();
-        discoveryRef.current?.commit();
-        eraHitsRef.current?.commit();
-        songCountRef.current?.commit();
+      commitPendingValues(): Partial<GenerationConfig> {
+        const overrides: Partial<GenerationConfig> = {};
+        if (favoritesRef.current) {
+          overrides.favoritesRatio = toRatio(favoritesRef.current.commit());
+        }
+        if (discoveryRef.current) {
+          overrides.discoveryRatio = toRatio(discoveryRef.current.commit());
+        }
+        if (eraHitsRef.current) {
+          overrides.eraHitsRatio = toRatio(eraHitsRef.current.commit());
+        }
+        if (songCountRef.current) {
+          overrides.targetSongCount = songCountRef.current.commit();
+        }
+        return overrides;
       },
     }));
 
@@ -226,12 +236,13 @@ const RatioInput = forwardRef<InputCommitHandle, RatioInputProps>(
       setLocalValue(String(value));
     }
 
-    const commitLocalValue = useCallback(() => {
+    const commitLocalValue = useCallback((): number => {
       const parsed = parseInt(localValue, 10);
       const fallback = isNaN(parsed) ? MIN_RATIO : parsed;
       const clamped = clamp(fallback, MIN_RATIO, MAX_RATIO);
       setLocalValue(String(clamped));
       onCommit(clamped);
+      return clamped;
     }, [localValue, onCommit]);
 
     useImperativeHandle(ref, () => ({ commit: commitLocalValue }), [
@@ -281,12 +292,13 @@ const SongCountInput = forwardRef<InputCommitHandle, SongCountInputProps>(
       setLocalValue(String(value));
     }
 
-    const commitLocalValue = useCallback(() => {
+    const commitLocalValue = useCallback((): number => {
       const parsed = parseInt(localValue, 10);
       const fallback = isNaN(parsed) ? MIN_SONG_COUNT : parsed;
       const clamped = clamp(fallback, MIN_SONG_COUNT, MAX_SONG_COUNT);
       setLocalValue(String(clamped));
       onCommit(clamped);
+      return clamped;
     }, [localValue, onCommit]);
 
     useImperativeHandle(ref, () => ({ commit: commitLocalValue }), [

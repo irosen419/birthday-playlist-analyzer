@@ -287,8 +287,8 @@ export default function PlaylistEditor() {
           isGenerating={generateMutation.isPending}
           ratiosValid={ratiosValid}
           onRegenerate={async () => {
-            configRef.current?.commitPendingValues();
-            await flushSave();
+            const overrides = configRef.current?.commitPendingValues();
+            await flushSave(overrides);
             generateMutation.mutate();
           }}
           onLockAll={handleLockAll}
