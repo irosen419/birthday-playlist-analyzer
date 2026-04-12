@@ -36,7 +36,9 @@ class AuthController < ApplicationController
     unless email_allowed?(profile["email"])
       Rails.logger.warn "[auth] Email not in allowlist: #{profile['email'].inspect}"
       reset_session
-      redirect_to "#{frontend_url}?error=unauthorized", allow_other_host: true
+      uri = URI(frontend_url)
+      uri.query = "error=unauthorized"
+      redirect_to uri.to_s, allow_other_host: true
       return
     end
 
@@ -44,7 +46,9 @@ class AuthController < ApplicationController
     token = AuthTokenService.encode(user.id)
     reset_session
 
-    redirect_to "#{frontend_url}#auth_token=#{token}", allow_other_host: true
+    uri = URI(frontend_url)
+    uri.fragment = "auth_token=#{token}"
+    redirect_to uri.to_s, allow_other_host: true
   end
 
   private

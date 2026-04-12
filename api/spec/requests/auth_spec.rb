@@ -186,6 +186,20 @@ RSpec.describe "Auth", type: :request do
         end
       end
     end
+    context "when FRONTEND_URL contains a stray fragment" do
+      it "produces a clean auth_token fragment without doubling the #" do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with("FRONTEND_URL").and_return("https://myapp.com/#")
+        allow(ENV).to receive(:[]).with("ALLOWED_EMAILS").and_return(nil)
+
+        get "/auth/spotify"
+        state = extract_state_from(response.location)
+        get "/auth/spotify/callback", params: { code: "auth_code", state: state }
+
+        expect(response.location).to match(%r{\Ahttps://myapp\.com/\#auth_token=.+\z})
+        expect(response.location).not_to include("##")
+      end
+    end
   end
 
   private

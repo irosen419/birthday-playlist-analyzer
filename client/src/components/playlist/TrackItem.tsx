@@ -17,6 +17,10 @@ interface TrackItemProps {
   onMove: (trackId: string, newPosition: number) => void;
 }
 
+// Fallback height used for top/bottom placement before the popover is measured.
+// Assumes a single-column menu ~4 items tall. If the popover content grows
+// (e.g., wrapping text or extra items), the flip logic may misplace it —
+// at that point, measure the actual rendered height via a ref instead.
 const ESTIMATED_POPOVER_HEIGHT = 180;
 
 function formatDuration(ms: number): string {
@@ -50,6 +54,10 @@ export default function TrackItem({
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const wasPopoverOpenRef = useRef(false);
 
+  // Attach outside-click/touch listeners only while the popover is open.
+  // Safe because the synthetic click that opened the popover has already
+  // fully dispatched by the time this effect runs (React effects fire
+  // after paint), so it won't immediately self-close.
   useEffect(() => {
     if (!isPopoverOpen) return;
 

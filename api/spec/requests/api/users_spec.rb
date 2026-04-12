@@ -84,6 +84,18 @@ RSpec.describe "Api::Users", type: :request do
 
         expect(response).to have_http_status(:unauthorized)
       end
+
+      it "returns 401 when Authorization header uses a non-Bearer scheme" do
+        get "/api/me", headers: { "Authorization" => "Basic foo" }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      it "returns 401 when Bearer token is empty" do
+        get "/api/me", headers: { "Authorization" => "Bearer " }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
     end
   end
 
