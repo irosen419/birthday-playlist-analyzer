@@ -38,17 +38,21 @@ class PlaylistGeneratorService
     era_hits.each { |t| mark_seen(t, all_track_ids) }
 
     all_tracks = intelligent_shuffle(favorites, genre_discoveries, era_hits)
+    reconciled = reconcile_to_target(
+      all_tracks, target_count, analysis_data[:tracks][:ranked_tracks], all_track_ids
+    )
 
     {
-      tracks: all_tracks,
+      tracks: reconciled[:tracks],
       favorites: favorites,
       genre_discoveries: genre_discoveries,
       era_hits: era_hits,
       stats: {
-        total_tracks: all_tracks.length,
+        total_tracks: reconciled[:tracks].length,
         from_favorites: favorites.length,
         from_genre_discovery: genre_discoveries.length,
         from_era_hits: era_hits.length,
+        from_reconciliation: reconciled[:extras].length,
         birth_year: birth_year
       }
     }
@@ -174,6 +178,33 @@ class PlaylistGeneratorService
   end
 
   private
+
+  def reconcile_to_target(all_tracks, target_count, ranked_tracks, used_ids)
+    if all_tracks.length > target_count
+      return { tracks: all_tracks.first(target_count), extras: [] }
+    end
+
+    shortfall = target_count - all_tracks.length
+    return { tracks: all_tracks, extras: [] } if shortfall.zero?
+
+    extras = collect_overfetch_extras(ranked_tracks, shortfall, used_ids)
+    { tracks: all_tracks + extras, extras: extras }
+  end
+
+  def collect_overfetch_extras(ranked_tracks, needed, used_ids)
+    extras = []
+
+    ranked_tracks.each do |track|
+      break if extras.length >= needed
+      next if used_ids.include?(track["id"])
+      next if duplicate_signature?(track)
+
+      extras << track.merge("source" => "reconciliation")
+      mark_seen(track, used_ids)
+    end
+
+    extras
+  end
 
   def search_era_hits(era, target_count, seen_track_ids)
     tracks = []
