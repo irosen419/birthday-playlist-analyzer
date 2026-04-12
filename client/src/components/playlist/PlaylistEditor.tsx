@@ -103,38 +103,6 @@ export default function PlaylistEditor() {
 
   const ratiosValid = areRatiosValid(generationConfig);
 
-  const generateMutation = useMutation({
-    mutationFn: () =>
-      generatePlaylist(playlistId!, {
-        birthYear,
-        lockedTrackIds: [...lockedTrackIds],
-      }),
-    onSuccess: (result) => {
-      const lockedTracks = tracks.filter((t) => lockedTrackIds.has(t.id));
-      const newTracks = result.tracks.filter(
-        (t) => !lockedTrackIds.has(t.id)
-      );
-
-      const merged: PlaylistTrack[] = [];
-      let newIdx = 0;
-
-      for (let i = 0; i < result.tracks.length; i++) {
-        const lockedAtPos = lockedTracks.find((t) => t.position === i);
-        if (lockedAtPos) {
-          merged.push(lockedAtPos);
-        } else if (newIdx < newTracks.length) {
-          merged.push(newTracks[newIdx++]);
-        }
-      }
-
-      while (newIdx < newTracks.length) {
-        merged.push(newTracks[newIdx++]);
-      }
-
-      setTracks(recalculatePositions(merged));
-    },
-  });
-
   // Track latest track count and cancel/delete state via ref so the unmount
   // cleanup sees fresh values without re-subscribing the effect on every render.
   const tracksRef = useRef<PlaylistTrack[]>([]);
@@ -143,6 +111,24 @@ export default function PlaylistEditor() {
   useEffect(() => {
     tracksRef.current = tracks;
   }, [tracks]);
+
+  const generateMutation = useMutation({
+    mutationFn: () =>
+      generatePlaylist(playlistId!, {
+        birthYear,
+        lockedTrackIds: [...lockedTrackIds],
+      }),
+    onMutate: () => {
+      // Prevent the unmount cleanup from deleting the playlist while a
+      // server-side generate is in flight. Without this, navigating away
+      // mid-generate deletes the playlist before the server inserts tracks,
+      // causing a foreign-key violation when persistence completes.
+      deletedRef.current = true;
+    },
+    onSuccess: (result) => {
+      setTracks(recalculatePositions(result.tracks));
+    },
+  });
 
   // Best-effort: if the user leaves the editor while the playlist is still
   // empty, delete it so we don't leave orphaned empty records in the DB.
@@ -168,31 +154,39 @@ export default function PlaylistEditor() {
     };
   }, [playlistId]);
 
-  const handleCancel = useCallback(() => {
-    if (!playlistId) return;
-    deletedRef.current = true;
-    deletePlaylist(playlistId)
-      .catch(() => {
-        // best-effort
-      })
-      .finally(() => {
-        queryClient.invalidateQueries({ queryKey: ['playlists'] });
-        navigate('/playlists');
-      });
-  }, [playlistId, navigate, queryClient]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleDelete = useCallback(() => {
-    if (!playlistId) return;
-    deletedRef.current = true;
-    deletePlaylist(playlistId)
-      .catch(() => {
-        // best-effort
-      })
-      .finally(() => {
-        queryClient.invalidateQueries({ queryKey: ['playlists'] });
-        navigate('/playlists');
-      });
-  }, [playlistId, navigate, queryClient]);
+  const removePlaylist = useCallback(
+    async ({ surfaceErrors }: { surfaceErrors: boolean }) => {
+      if (!playlistId) return;
+      deletedRef.current = true;
+      setDeleteError(null);
+      try {
+        await deletePlaylist(playlistId);
+      } catch (err) {
+        if (surfaceErrors) {
+          setDeleteError(
+            err instanceof Error ? err.message : 'Failed to delete playlist.'
+          );
+          deletedRef.current = false;
+          return;
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      navigate('/playlists');
+    },
+    [playlistId, navigate, queryClient]
+  );
+
+  const handleCancel = useCallback(
+    () => removePlaylist({ surfaceErrors: false }),
+    [removePlaylist]
+  );
+
+  const handleDelete = useCallback(
+    () => removePlaylist({ surfaceErrors: true }),
+    [removePlaylist]
+  );
 
   const [justPublished, setJustPublished] = useState(false);
 
@@ -366,6 +360,11 @@ export default function PlaylistEditor() {
           onDelete={handleDelete}
           isPublished={!!playlist?.spotifyPlaylistId}
         />
+        {deleteError && (
+          <p className="mt-2 w-full text-sm text-red-400" role="alert">
+            {deleteError}
+          </p>
+        )}
       </div>
 
       <PlaylistConfig

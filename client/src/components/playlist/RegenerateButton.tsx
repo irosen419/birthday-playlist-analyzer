@@ -53,7 +53,7 @@ export default function RegenerateButton({
   function handleDeleteClick() {
     if (!onDelete) return;
     const message = isPublished
-      ? 'This playlist is published to Spotify. Delete the local copy? (The Spotify playlist will remain in your account.)'
+      ? 'This playlist is published to Spotify. Delete the local copy? (The Spotify playlist will remain in your account)'
       : 'Delete this playlist?';
     if (confirm(message)) {
       onDelete();
