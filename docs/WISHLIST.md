@@ -15,13 +15,18 @@ When adding an item, use this shape:
 
 ## Features
 
+### Remove default Nostalgic Artists
+Remove having NSYNC, Backstreet Boys, Britney Spears and Smash Mouth as backstreet boys. We should be able to add our own, per playlist - no defaults. Pre-cursor to 'Era-based artist generation via Claude API' below
+
+### Generation Config Before Every Playlist Creation
+When the user clicks Create Playlist, before the playlist is actually generated, a modal should appear with the generation settings (ratios, target song count) and options for nostalgic artist entry. This applies to every new playlist, not just the first — each playlist gets independently configured from the start. The config component should be extracted out since it already lives on the playlist page.
+
 ### Era-based artist generation via Claude API
 Replace any hardcoded default nostalgic artists with dynamically generated top 5–10 artists per life era (ages 10–12, high school ~14–18, college ~18–22, +TBD) derived from the honoree's birth year. Claude API acts as the oracle: prompt it for artist names per era, then resolve those names to Spotify artist IDs for playlist building. Claude stays as the intelligence layer; Spotify stays as the playback/playlist layer. Last.fm `chart.getTopArtists` was considered as an alternative but adds a dependency. Cost for personal use is negligible (~500–1000 tokens per request, fractions of a cent per playlist); if it ever grows, Batch API (50% off, 24h async) and prompt caching are available levers.
 
 ## UX polish
 
-### Sticky scroll to top/bottom button
-A floating button on the playlist editor that jumps to the top or bottom of the track list. With 125+ tracks and a locked-tracks-at-top layout, scrolling through the full list to reach the end (or back) is tedious.
+_(empty)_
 
 ## Developer experience
 

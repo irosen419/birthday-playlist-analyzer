@@ -5,23 +5,29 @@ import { updateMe } from '../../api/auth';
 
 const MIN_BIRTH_YEAR = 1940;
 const MAX_BIRTH_YEAR = new Date().getFullYear();
-const DEFAULT_BIRTH_YEAR = 1991;
 
 export default function OnboardingPage() {
   const { setUser } = useAuth();
   const navigate = useNavigate();
-  const [birthYear, setBirthYear] = useState(DEFAULT_BIRTH_YEAR);
+  const [birthYear, setBirthYear] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+
+    const parsed = Number(birthYear);
+    if (!birthYear || isNaN(parsed) || parsed < MIN_BIRTH_YEAR || parsed > MAX_BIRTH_YEAR) {
+      setError(`Please enter a year between ${MIN_BIRTH_YEAR} and ${MAX_BIRTH_YEAR}.`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const updatedUser = await updateMe({
-        birthYear,
+        birthYear: parsed,
         setupCompleted: true,
       });
       setUser(updatedUser);
@@ -61,8 +67,9 @@ export default function OnboardingPage() {
               min={MIN_BIRTH_YEAR}
               max={MAX_BIRTH_YEAR}
               value={birthYear}
-              onChange={(e) => setBirthYear(Number(e.target.value))}
-              className="w-full rounded-lg border border-[#404040] bg-[#282828] px-4 py-3 text-center text-lg text-white focus:border-[#1DB954] focus:outline-none"
+              placeholder="e.g. 1991"
+              onChange={(e) => setBirthYear(e.target.value)}
+              className="w-full rounded-lg border border-[#404040] bg-[#282828] px-4 py-3 text-center text-lg text-white placeholder-[#666] focus:border-[#1DB954] focus:outline-none"
             />
           </div>
 
@@ -70,7 +77,7 @@ export default function OnboardingPage() {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !birthYear}
             className="w-full cursor-pointer rounded-full bg-[#1DB954] px-12 py-4 font-bold text-black transition-colors hover:bg-[#1ed760] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? 'Saving...' : 'Get Started'}
