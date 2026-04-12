@@ -85,16 +85,34 @@ RSpec.describe Playlist, type: :model do
       expect(playlist).to be_valid
     end
 
-    it 'validates target_song_count is within range' do
-      playlist = build(:playlist, target_song_count: 10)
+    it 'rejects target_song_count below 30' do
+      playlist = build(:playlist, target_song_count: 29)
 
       expect(playlist).not_to be_valid
+    end
+
+    it 'accepts target_song_count at the lower bound of 30' do
+      playlist = build(:playlist, target_song_count: 30)
+
+      expect(playlist).to be_valid
     end
 
     it 'accepts target_song_count within valid range' do
       playlist = build(:playlist, target_song_count: 150)
 
       expect(playlist).to be_valid
+    end
+
+    it 'accepts target_song_count at the upper bound of 200' do
+      playlist = build(:playlist, target_song_count: 200)
+
+      expect(playlist).to be_valid
+    end
+
+    it 'rejects target_song_count above 200' do
+      playlist = build(:playlist, target_song_count: 201)
+
+      expect(playlist).not_to be_valid
     end
   end
 
