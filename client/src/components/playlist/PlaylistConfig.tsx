@@ -1,11 +1,28 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { GenerationConfig } from '../../hooks/useAutoSave';
 
-const MIN_RATIO = 10;
-const MAX_RATIO = 60;
-const MIN_SONG_COUNT = 50;
+const MIN_RATIO = 0;
+const MAX_RATIO = 100;
+const MIN_SONG_COUNT = 30;
 const MAX_SONG_COUNT = 200;
 const TARGET_RATIO_SUM = 100;
+const IDLE_WINDOW_MS = 10_000;
+
+type RatioField = 'favorites' | 'discovery' | 'eraHits';
+
+const RATIO_FIELD_ORDER: readonly RatioField[] = [
+  'favorites',
+  'discovery',
+  'eraHits',
+];
+
+type TouchTimestamps = Record<RatioField, number>;
+
+const INITIAL_TOUCH_TIMESTAMPS: TouchTimestamps = {
+  favorites: 0,
+  discovery: 0,
+  eraHits: 0,
+};
 
 interface PlaylistConfigProps {
   config: GenerationConfig;
@@ -28,11 +45,18 @@ function ratioSumIsValid(
   return favorites + discovery + eraHits === TARGET_RATIO_SUM;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 export default function PlaylistConfig({
   config,
   onChange,
 }: PlaylistConfigProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [lastTouchedAt, setLastTouchedAt] = useState<TouchTimestamps>(
+    INITIAL_TOUCH_TIMESTAMPS
+  );
 
   const favoritesPercent = toPercent(config.favoritesRatio);
   const discoveryPercent = toPercent(config.discoveryRatio);
@@ -51,24 +75,47 @@ export default function PlaylistConfig({
     [config, onChange]
   );
 
+  const touchRatioField = useCallback((field: RatioField) => {
+    const now = Date.now();
+    setLastTouchedAt((prev) => ({ ...prev, [field]: now }));
+  }, []);
+
   const handleBalance = useCallback(() => {
-    const total =
-      toPercent(config.favoritesRatio) +
-      toPercent(config.discoveryRatio) +
-      toPercent(config.eraHitsRatio);
+    const currentPercents: Record<RatioField, number> = {
+      favorites: toPercent(config.favoritesRatio),
+      discovery: toPercent(config.discoveryRatio),
+      eraHits: toPercent(config.eraHitsRatio),
+    };
 
-    if (total === TARGET_RATIO_SUM) return;
+    const now = Date.now();
+    const idleFields = RATIO_FIELD_ORDER.filter(
+      (field) => now - lastTouchedAt[field] >= IDLE_WINDOW_MS
+    );
 
-    const diff = TARGET_RATIO_SUM - toPercent(config.favoritesRatio);
-    const halfDiff = Math.floor(diff / 2);
-    const remainder = diff - halfDiff;
+    if (idleFields.length === 0) return;
+
+    const lockedSum = RATIO_FIELD_ORDER.filter(
+      (field) => !idleFields.includes(field)
+    ).reduce((sum, field) => sum + currentPercents[field], 0);
+
+    const remainder = TARGET_RATIO_SUM - lockedSum;
+    if (remainder < 0) return;
+
+    const base = Math.floor(remainder / idleFields.length);
+    const leftover = remainder - base * idleFields.length;
+
+    const nextPercents: Record<RatioField, number> = { ...currentPercents };
+    idleFields.forEach((field, index) => {
+      nextPercents[field] = base + (index < leftover ? 1 : 0);
+    });
 
     onChange({
       ...config,
-      discoveryRatio: toRatio(halfDiff),
-      eraHitsRatio: toRatio(remainder),
+      favoritesRatio: toRatio(nextPercents.favorites),
+      discoveryRatio: toRatio(nextPercents.discovery),
+      eraHitsRatio: toRatio(nextPercents.eraHits),
     });
-  }, [config, onChange]);
+  }, [config, lastTouchedAt, onChange]);
 
   return (
     <div className="mb-6 rounded-xl bg-[#181818]">
@@ -94,27 +141,24 @@ export default function PlaylistConfig({
             <RatioInput
               label="Favorites %"
               value={favoritesPercent}
-              onChange={(val) =>
-                updateConfig({ favoritesRatio: toRatio(val) })
-              }
+              onCommit={(val) => updateConfig({ favoritesRatio: toRatio(val) })}
+              onTouch={() => touchRatioField('favorites')}
             />
             <RatioInput
               label="Discovery %"
               value={discoveryPercent}
-              onChange={(val) =>
-                updateConfig({ discoveryRatio: toRatio(val) })
-              }
+              onCommit={(val) => updateConfig({ discoveryRatio: toRatio(val) })}
+              onTouch={() => touchRatioField('discovery')}
             />
             <RatioInput
               label="Era Hits %"
               value={eraHitsPercent}
-              onChange={(val) =>
-                updateConfig({ eraHitsRatio: toRatio(val) })
-              }
+              onCommit={(val) => updateConfig({ eraHitsRatio: toRatio(val) })}
+              onTouch={() => touchRatioField('eraHits')}
             />
             <SongCountInput
               value={config.targetSongCount}
-              onChange={(val) => updateConfig({ targetSongCount: val })}
+              onCommit={(val) => updateConfig({ targetSongCount: val })}
             />
           </div>
 
@@ -137,63 +181,33 @@ export default function PlaylistConfig({
   );
 }
 
-function RatioInput({
-  label,
-  value,
-  onChange,
-}: {
+interface RatioInputProps {
   label: string;
   value: number;
-  onChange: (value: number) => void;
-}) {
+  onCommit: (value: number) => void;
+  onTouch: () => void;
+}
+
+function RatioInput({ label, value, onCommit, onTouch }: RatioInputProps) {
   const [localValue, setLocalValue] = useState(String(value));
   const [prevValue, setPrevValue] = useState(value);
 
-  // Sync from parent when value changes externally (e.g., Balance button)
   if (value !== prevValue) {
     setPrevValue(value);
     setLocalValue(String(value));
   }
 
-  return (
-    <div>
-      <label className="mb-1 block text-xs text-[#6a6a6a]">{label}</label>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={localValue}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/\D/g, '').slice(0, 2);
-          setLocalValue(raw);
-          const num = parseInt(raw, 10);
-          if (!isNaN(num)) {
-            onChange(num);
-          }
-        }}
-        onBlur={() => {
-          const num = parseInt(localValue, 10) || MIN_RATIO;
-          const clamped = Math.min(Math.max(num, MIN_RATIO), MAX_RATIO);
-          setLocalValue(String(clamped));
-          onChange(clamped);
-        }}
-        className="w-full rounded-lg bg-[#282828] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-[#1DB954]"
-      />
-    </div>
-  );
-}
-
-function SongCountInput({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  const [localValue, setLocalValue] = useState(String(value));
+  const parsed = parseInt(localValue, 10);
+  const overMax = !isNaN(parsed) && parsed > MAX_RATIO;
 
   return (
     <div>
-      <label className="mb-1 block text-xs text-[#6a6a6a]">Total Songs</label>
+      <div className="mb-1 flex items-baseline justify-between gap-2">
+        <label className="block text-xs text-[#6a6a6a]">{label}</label>
+        {overMax && (
+          <span className="text-xs text-amber-400">Max is {MAX_RATIO}</span>
+        )}
+      </div>
       <input
         type="text"
         inputMode="numeric"
@@ -201,16 +215,60 @@ function SongCountInput({
         onChange={(e) => {
           const raw = e.target.value.replace(/\D/g, '').slice(0, 3);
           setLocalValue(raw);
-          const num = parseInt(raw, 10);
-          if (!isNaN(num)) {
-            onChange(num);
-          }
+          onTouch();
         }}
         onBlur={() => {
-          const num = parseInt(localValue, 10) || MIN_SONG_COUNT;
-          const clamped = Math.min(Math.max(num, MIN_SONG_COUNT), MAX_SONG_COUNT);
+          const parsedOnBlur = parseInt(localValue, 10);
+          const fallback = isNaN(parsedOnBlur) ? MIN_RATIO : parsedOnBlur;
+          const clamped = clamp(fallback, MIN_RATIO, MAX_RATIO);
           setLocalValue(String(clamped));
-          onChange(clamped);
+          onCommit(clamped);
+        }}
+        className="w-full rounded-lg bg-[#282828] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-[#1DB954]"
+      />
+    </div>
+  );
+}
+
+interface SongCountInputProps {
+  value: number;
+  onCommit: (value: number) => void;
+}
+
+function SongCountInput({ value, onCommit }: SongCountInputProps) {
+  const [localValue, setLocalValue] = useState(String(value));
+  const [prevValue, setPrevValue] = useState(value);
+
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setLocalValue(String(value));
+  }
+
+  const parsed = parseInt(localValue, 10);
+  const overMax = !isNaN(parsed) && parsed > MAX_SONG_COUNT;
+
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between gap-2">
+        <label className="block text-xs text-[#6a6a6a]">Total Songs</label>
+        {overMax && (
+          <span className="text-xs text-amber-400">Max is {MAX_SONG_COUNT}</span>
+        )}
+      </div>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={localValue}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/\D/g, '').slice(0, 3);
+          setLocalValue(raw);
+        }}
+        onBlur={() => {
+          const parsedOnBlur = parseInt(localValue, 10);
+          const fallback = isNaN(parsedOnBlur) ? MIN_SONG_COUNT : parsedOnBlur;
+          const clamped = clamp(fallback, MIN_SONG_COUNT, MAX_SONG_COUNT);
+          setLocalValue(String(clamped));
+          onCommit(clamped);
         }}
         className="w-full rounded-lg bg-[#282828] px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-[#1DB954]"
       />
