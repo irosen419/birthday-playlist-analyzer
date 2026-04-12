@@ -24,6 +24,9 @@ npm-debug.log*
 # Claude
 .claude/
 
+# PR review tracking (ephemeral, per-session)
+docs/PR-REVIEW-*.md
+
 # Rails
 api/tmp/
 api/log/

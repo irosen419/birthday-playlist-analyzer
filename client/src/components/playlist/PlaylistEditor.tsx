@@ -52,8 +52,17 @@ export default function PlaylistEditor() {
     targetSongCount: 125,
   });
 
-  // Only hydrate local state when navigating to a different playlist,
-  // not on every refetch (which would clobber unsaved state).
+  // Hydrate local state only when navigating to a different playlist (keyed on
+  // playlist?.id), NOT on every refetch. Re-hydrating on refetch would clobber
+  // unsaved edits because the 500ms auto-save debounce may not have flushed yet.
+  // This means local state is the source of truth after any mutation (generate,
+  // reorder, lock, etc.) until auto-save persists it. This is safe as long as:
+  //   (a) auto-save always flushes before navigation (currently guaranteed by
+  //       the 500ms debounce + single-user flow), and
+  //   (b) the server never mutates playlist fields the client cares about
+  //       out-of-band (no multi-device editing today).
+  // If either assumption breaks, revisit this — e.g., add a beforeunload guard
+  // or optimistic-update reconciliation.
   useEffect(() => {
     if (!playlist) return;
     setName(playlist.name);

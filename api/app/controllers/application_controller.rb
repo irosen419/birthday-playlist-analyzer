@@ -14,7 +14,7 @@ class ApplicationController < ActionController::API
     header = request.headers["Authorization"]
     return nil unless header&.start_with?("Bearer ")
 
-    header.split(" ", 2).last
+    header.delete_prefix("Bearer ")
   end
 
   def authenticate_user!
