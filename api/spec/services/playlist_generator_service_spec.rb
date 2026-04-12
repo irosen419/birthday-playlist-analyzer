@@ -131,6 +131,152 @@ RSpec.describe PlaylistGeneratorService do
 
       expect(result[:stats][:from_favorites]).to eq(30)
     end
+
+    describe "target_count reconciliation" do
+      it "returns exactly target_count tracks under normal supply" do
+        result = generator.generate(analysis_data, birth_year: 1991, target_count: 30)
+
+        expect(result[:tracks].length).to eq(30)
+      end
+
+      it "fills from ranked_tracks when era_hits bucket under-delivers" do
+        allow(spotify_client).to receive(:search) do |args|
+          if args[:query].to_s.include?("year:")
+            { "tracks" => { "items" => [] } }
+          else
+            {
+              "tracks" => {
+                "items" => (1..5).map do |i|
+                  make_track.call(
+                    id: "search_#{SecureRandom.hex(4)}_#{i}",
+                    name: "Search Result #{i}",
+                    artist_id: "new_artist_#{i + 100}",
+                    popularity: 70
+                  )
+                end
+              },
+              "artists" => { "items" => [] }
+            }
+          end
+        end
+
+        result = generator.generate(analysis_data, birth_year: 1991, target_count: 30)
+
+        expect(result[:tracks].length).to eq(30)
+      end
+
+      it "fills from ranked_tracks when discovery bucket under-delivers" do
+        allow(spotify_client).to receive(:search).and_return({
+          "tracks" => { "items" => [] },
+          "artists" => { "items" => [] }
+        })
+        allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+
+        result = generator.generate(analysis_data, birth_year: 1991, target_count: 30)
+
+        expect(result[:tracks].length).to eq(30)
+        expect(result[:tracks].length).to eq(result[:tracks].map { |t| t["id"] }.uniq.length)
+      end
+
+      it "tags backfill tracks with source 'reconciliation'" do
+        allow(spotify_client).to receive(:search) do |args|
+          if args[:query].to_s.include?("year:")
+            { "tracks" => { "items" => [] } }
+          else
+            {
+              "tracks" => {
+                "items" => (1..5).map do |i|
+                  make_track.call(
+                    id: "search_#{SecureRandom.hex(4)}_#{i}",
+                    name: "Search Result #{i}",
+                    artist_id: "new_artist_#{i + 100}",
+                    popularity: 70
+                  )
+                end
+              },
+              "artists" => { "items" => [] }
+            }
+          end
+        end
+
+        result = generator.generate(analysis_data, birth_year: 1991, target_count: 30)
+
+        backfill_tracks = result[:tracks].select { |t| t["source"] == "reconciliation" }
+        non_backfill_sources = result[:tracks].reject { |t| t["source"] == "reconciliation" }.map { |t| t["source"] }
+
+        expect(backfill_tracks).not_to be_empty
+        non_backfill_sources.each do |source|
+          expect(source).not_to eq("reconciliation")
+        end
+      end
+
+      it "enforces MAX_PER_ARTIST in reconciliation backfill" do
+        dominator_id = "dominator_artist"
+        dominated_tracks = (1..20).map do |i|
+          make_track.call(
+            id: "dom_#{i}",
+            name: "Dominator Track #{i}",
+            artist_id: dominator_id,
+            artist_name: "Dominator",
+            popularity: 90
+          ).merge("total_weight" => 3.0 - (i * 0.1))
+        end
+
+        dominated_analysis = {
+          tracks: { ranked_tracks: dominated_tracks },
+          artists: { ranked_artists: [] }
+        }
+
+        # Starve discovery and era_hits so reconciliation must kick in
+        allow(spotify_client).to receive(:search).and_return({
+          "tracks" => { "items" => [] },
+          "artists" => { "items" => [] }
+        })
+        allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+
+        result = generator.generate(
+          dominated_analysis,
+          birth_year: 1991,
+          target_count: 15,
+          favorites_ratio: 0.2,
+          discovery_ratio: 0.4,
+          era_hits_ratio: 0.4
+        )
+
+        dominator_tracks = result[:tracks].select do |t|
+          t.dig("artists", 0, "id") == dominator_id
+        end
+
+        expect(dominator_tracks.length).to be <= described_class::MAX_PER_ARTIST
+      end
+
+      it "returns fewer tracks only when supply is genuinely exhausted" do
+        starved_analysis = {
+          tracks: {
+            ranked_tracks: (1..5).map do |i|
+              make_track.call(
+                id: "only_#{i}",
+                name: "Only #{i}",
+                artist_id: "only_artist_#{i}",
+                popularity: 80
+              ).merge("total_weight" => 1.0)
+            end
+          },
+          artists: { ranked_artists: [] }
+        }
+
+        allow(spotify_client).to receive(:search).and_return({
+          "tracks" => { "items" => [] },
+          "artists" => { "items" => [] }
+        })
+        allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+
+        result = generator.generate(starved_analysis, birth_year: 1991, target_count: 30)
+
+        expect(result[:tracks].length).to be <= 30
+        expect(result[:tracks].length).to be >= 5
+      end
+    end
   end
 
   describe "#select_favorites" do

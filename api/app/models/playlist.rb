@@ -1,6 +1,6 @@
 class Playlist < ApplicationRecord
   RATIO_SUM_TOLERANCE = 0.02
-  VALID_SONG_COUNT_RANGE = (50..200).freeze
+  VALID_SONG_COUNT_RANGE = (30..200).freeze
 
   belongs_to :user
   has_many :playlist_tracks, -> { order(:position) }, dependent: :destroy

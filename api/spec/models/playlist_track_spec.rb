@@ -14,6 +14,6 @@ RSpec.describe PlaylistTrack, type: :model do
   end
 
   describe 'source enum' do
-    it { is_expected.to define_enum_for(:source).with_values(favorite: 0, genre_discovery: 1, era_hit: 2, manual: 3) }
+    it { is_expected.to define_enum_for(:source).with_values(favorite: 0, genre_discovery: 1, era_hit: 2, manual: 3, reconciliation: 4) }
   end
 end

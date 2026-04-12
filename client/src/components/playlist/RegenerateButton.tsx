@@ -4,6 +4,7 @@ interface RegenerateButtonProps {
   tracks: PlaylistTrack[];
   lockedTrackIds: Set<string>;
   isGenerating: boolean;
+  ratiosValid: boolean;
   onRegenerate: () => void;
   onLockAll: () => void;
   onUnlockAll: () => void;
@@ -14,6 +15,7 @@ export default function RegenerateButton({
   tracks,
   lockedTrackIds,
   isGenerating,
+  ratiosValid,
   onRegenerate,
   onLockAll,
   onUnlockAll,
@@ -45,8 +47,14 @@ export default function RegenerateButton({
     <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2">
       <button
         onClick={handleClick}
-        disabled={isGenerating || allLocked}
-        title={allLocked ? 'Unlock at least one track to regenerate' : undefined}
+        disabled={isGenerating || allLocked || !ratiosValid}
+        title={
+          !ratiosValid
+            ? 'Ratios must sum to 100%'
+            : allLocked
+              ? 'Unlock at least one track to regenerate'
+              : undefined
+        }
         className="w-full cursor-pointer rounded-full border border-[#1DB954] bg-[#282828] px-6 py-2 text-sm font-semibold text-white transition-colors hover:border-[#1ed760] hover:bg-[#333333] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >
         {isGenerating ? 'Generating...' : 'Regenerate'}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlaylistTrack } from '../types';
 import { updatePlaylist } from '../api/playlists';
 
@@ -24,6 +24,8 @@ export function useAutoSave(
   const isInitialRender = useRef(true);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const saveFnRef = useRef<((overrides?: Partial<GenerationConfig>) => Promise<void>) | null>(null);
+  const inflightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (isInitialRender.current) {
@@ -35,15 +37,21 @@ export function useAutoSave(
 
     clearTimeout(timerRef.current);
 
-    timerRef.current = setTimeout(async () => {
+    const doSave = async (overrides?: Partial<GenerationConfig>) => {
+      saveFnRef.current = null;
       setSaving(true);
       try {
-        await updatePlaylist(playlistId, {
+        const mergedConfig = overrides
+          ? { ...generationConfig, ...overrides }
+          : generationConfig;
+        const savePromise = updatePlaylist(playlistId, {
           name,
           tracks,
           birthYear,
-          ...generationConfig,
+          ...mergedConfig,
         });
+        inflightRef.current = savePromise.then(() => {}).catch(() => {});
+        await savePromise;
         setJustSaved(true);
         clearTimeout(savedTimerRef.current);
         savedTimerRef.current = setTimeout(
@@ -53,16 +61,31 @@ export function useAutoSave(
       } catch (error) {
         console.error('Auto-save failed:', error);
       } finally {
+        inflightRef.current = null;
         setSaving(false);
       }
-    }, DEBOUNCE_DELAY_MS);
+    };
+
+    saveFnRef.current = doSave;
+
+    timerRef.current = setTimeout(doSave, DEBOUNCE_DELAY_MS);
 
     return () => clearTimeout(timerRef.current);
   }, [playlistId, name, tracks, birthYear, generationConfig]);
+
+  const flushSave = useCallback(async (overrides?: Partial<GenerationConfig>) => {
+    clearTimeout(timerRef.current);
+    const pending = saveFnRef.current;
+    if (pending) {
+      await pending(overrides);
+    } else if (inflightRef.current) {
+      await inflightRef.current;
+    }
+  }, []);
 
   useEffect(() => {
     return () => clearTimeout(savedTimerRef.current);
   }, []);
 
-  return { isSaving, justSaved };
+  return { isSaving, justSaved, flushSave };
 }

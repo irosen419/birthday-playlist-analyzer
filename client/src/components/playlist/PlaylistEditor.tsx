@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PlaylistTrack, Track } from '../../types';
@@ -9,6 +9,7 @@ import {
 } from '../../api/playlists';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import type { GenerationConfig } from '../../hooks/useAutoSave';
+import { areRatiosValid } from '../../lib/ratioValidation';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import PlaylistHeader from './PlaylistHeader';
@@ -16,6 +17,7 @@ import PlaylistTrackList from './PlaylistTrackList';
 import RegenerateButton from './RegenerateButton';
 import NostalgicArtistsEditor from './NostalgicArtistsEditor';
 import PlaylistConfig from './PlaylistConfig';
+import type { PlaylistConfigHandle } from './PlaylistConfig';
 import SearchBar from '../search/SearchBar';
 import LoadingSpinner from '../common/LoadingSpinner';
 
@@ -29,6 +31,7 @@ export default function PlaylistEditor() {
   const queryClient = useQueryClient();
   const { playTrack } = usePlayer();
   const { user } = useAuth();
+  const configRef = useRef<PlaylistConfigHandle>(null);
 
   const { data: playlist, isLoading } = useQuery({
     queryKey: ['playlist', playlistId],
@@ -83,7 +86,9 @@ export default function PlaylistEditor() {
     generationConfig.targetSongCount,
   ]);
 
-  const { isSaving, justSaved } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
+  const { isSaving, justSaved, flushSave } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
+
+  const ratiosValid = areRatiosValid(generationConfig);
 
   const generateMutation = useMutation({
     mutationFn: () =>
@@ -280,14 +285,19 @@ export default function PlaylistEditor() {
           tracks={tracks}
           lockedTrackIds={lockedTrackIds}
           isGenerating={generateMutation.isPending}
-          onRegenerate={() => generateMutation.mutate()}
+          ratiosValid={ratiosValid}
+          onRegenerate={async () => {
+            const overrides = configRef.current?.commitPendingValues();
+            await flushSave(overrides);
+            generateMutation.mutate();
+          }}
           onLockAll={handleLockAll}
           onUnlockAll={handleUnlockAll}
           onShuffle={handleShuffle}
         />
       </div>
 
-      <PlaylistConfig config={generationConfig} onChange={setGenerationConfig} />
+      <PlaylistConfig ref={configRef} config={generationConfig} onChange={setGenerationConfig} />
 
       <NostalgicArtistsEditor />
 
