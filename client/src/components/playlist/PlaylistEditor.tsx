@@ -83,7 +83,11 @@ export default function PlaylistEditor() {
     generationConfig.targetSongCount,
   ]);
 
-  const { isSaving, justSaved } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
+  const { isSaving, justSaved, flushSave } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
+
+  const ratiosValid = Math.round(generationConfig.favoritesRatio * 100) +
+    Math.round(generationConfig.discoveryRatio * 100) +
+    Math.round(generationConfig.eraHitsRatio * 100) === 100;
 
   const generateMutation = useMutation({
     mutationFn: () =>
@@ -280,7 +284,11 @@ export default function PlaylistEditor() {
           tracks={tracks}
           lockedTrackIds={lockedTrackIds}
           isGenerating={generateMutation.isPending}
-          onRegenerate={() => generateMutation.mutate()}
+          ratiosValid={ratiosValid}
+          onRegenerate={async () => {
+            await flushSave();
+            generateMutation.mutate();
+          }}
           onLockAll={handleLockAll}
           onUnlockAll={handleUnlockAll}
           onShuffle={handleShuffle}
