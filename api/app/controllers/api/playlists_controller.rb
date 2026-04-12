@@ -11,6 +11,7 @@ module Api
         .includes(:playlist_tracks)
         .joins(:playlist_tracks)
         .distinct
+        .order(created_at: :asc)
 
       render json: playlists.map { |p| playlist_summary(p) }
     end

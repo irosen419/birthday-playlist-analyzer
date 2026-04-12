@@ -55,6 +55,20 @@ RSpec.describe "Api::Playlists", type: :request do
       names = response.parsed_body.map { |p| p["name"] }
       expect(names).to eq(["Older", "Newer"])
     end
+
+    it "returns playlists in created_at ascending order regardless of insertion order" do
+      newer = create(:playlist, user: user, name: "Newer", created_at: 1.hour.ago)
+      create(:playlist_track, playlist: newer, track: create(:track), position: 1)
+      older = create(:playlist, user: user, name: "Older", created_at: 2.days.ago)
+      create(:playlist_track, playlist: older, track: create(:track), position: 1)
+      middle = create(:playlist, user: user, name: "Middle", created_at: 1.day.ago)
+      create(:playlist_track, playlist: middle, track: create(:track), position: 1)
+
+      get "/api/playlists"
+
+      names = response.parsed_body.map { |p| p["name"] }
+      expect(names).to eq(["Older", "Middle", "Newer"])
+    end
   end
 
   describe "GET /api/playlists/:id" do
