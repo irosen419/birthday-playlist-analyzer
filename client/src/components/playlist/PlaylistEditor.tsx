@@ -19,6 +19,7 @@ import NostalgicArtistsEditor from './NostalgicArtistsEditor';
 import PlaylistConfig from './PlaylistConfig';
 import type { PlaylistConfigHandle } from './PlaylistConfig';
 import SearchBar from '../search/SearchBar';
+import ScrollFab from './ScrollFab';
 import LoadingSpinner from '../common/LoadingSpinner';
 
 function recalculatePositions(tracks: PlaylistTrack[]): PlaylistTrack[] {
@@ -312,6 +313,8 @@ export default function PlaylistEditor() {
         onMove={handleMove}
         isGenerating={generateMutation.isPending}
       />
+
+      <ScrollFab />
     </div>
   );
 }

@@ -15,9 +15,6 @@ When adding an item, use this shape:
 
 ## Features
 
-### Birth Year at Signup
-When a user joins for the first time and is prompted for their birth year, they should be greeted with an empty input instead of one that says 1991. However, a placeholder is valid.
-
 ### Remove default Nostalgic Artists
 Remove having NSYNC, Backstreet Boys, Britney Spears and Smash Mouth as backstreet boys. We should be able to add our own, per playlist - no defaults. Pre-cursor to 'Era-based artist generation via Claude API' below
 
@@ -29,8 +26,7 @@ Replace any hardcoded default nostalgic artists with dynamically generated top 5
 
 ## UX polish
 
-### Sticky scroll to top/bottom button
-A floating button on the playlist editor that jumps to the top or bottom of the track list. With 125+ tracks and a locked-tracks-at-top layout, scrolling through the full list to reach the end (or back) is tedious.
+_(empty)_
 
 ## Developer experience
 
