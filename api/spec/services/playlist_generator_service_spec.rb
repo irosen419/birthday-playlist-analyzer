@@ -387,8 +387,6 @@ RSpec.describe PlaylistGeneratorService do
 
   describe "#get_era_hits" do
     before do
-      # Create nostalgic artists for the user
-      user.nostalgic_artists.destroy_all
       user.nostalgic_artists.create!(name: "NSYNC", era: "formative")
       user.nostalgic_artists.create!(name: "Britney Spears", era: "formative")
 
@@ -450,6 +448,42 @@ RSpec.describe PlaylistGeneratorService do
 
       ids = result.map { |t| t["id"] }
       expect(ids).not_to include("era_already_seen")
+    end
+
+    context "when user has no nostalgic artists" do
+      before do
+        # Override the outer before block's nostalgic artist setup —
+        # this user starts fresh with zero nostalgic artists (the new default).
+        user.nostalgic_artists.destroy_all
+
+        allow(spotify_client).to receive(:search).and_return({
+          "tracks" => {
+            "items" => (1..5).map do |i|
+              make_track.call(
+                id: "generic_era_#{SecureRandom.hex(4)}_#{i}",
+                name: "Generic Era Track #{i}",
+                artist_id: "generic_era_artist_#{i}",
+                popularity: 70
+              )
+            end
+          },
+          "artists" => { "items" => [] }
+        })
+      end
+
+      it "returns tracks from the generic year-based search fallback" do
+        result = generator.get_era_hits(1991, 10, Set.new)
+
+        expect(result).not_to be_empty
+      end
+
+      it "does not tag any tracks as nostalgic" do
+        result = generator.get_era_hits(1991, 10, Set.new)
+
+        result.each do |track|
+          expect(track["nostalgic"]).to be_falsey
+        end
+      end
     end
   end
 
