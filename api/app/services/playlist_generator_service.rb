@@ -4,6 +4,9 @@ class PlaylistGeneratorService
   DEFAULT_DISCOVERY_RATIO = 0.3
   MIN_POPULARITY = 60
   MAX_PER_ARTIST = 3
+  GLOBAL_MAX_PER_ARTIST = 4
+  NOSTALGIC_PER_ARTIST_TARGET = 4
+  NOSTALGIC_POPULARITY_TIERS = [60, 30, 0].freeze
   SEARCH_GENRES = ["pop", "rock", "hip hop", "r&b"].freeze
   MAX_SEARCH_OFFSET = 80
   SCORE_JITTER_RANGE = 0.15
@@ -16,6 +19,7 @@ class PlaylistGeneratorService
 
   def generate(analysis_data, birth_year:, target_count: DEFAULT_TARGET_SONG_COUNT,
                exclude_track_ids: [],
+               existing_tracks: [],
                favorites_ratio: DEFAULT_FAVORITES_RATIO,
                discovery_ratio: DEFAULT_DISCOVERY_RATIO,
                era_hits_ratio: nil)
@@ -25,16 +29,21 @@ class PlaylistGeneratorService
 
     all_track_ids = Set.new(exclude_track_ids)
     @seen_signatures = Set.new
+    @artist_counts = seed_artist_counts(existing_tracks)
 
-    favorites = select_favorites(analysis_data[:tracks][:ranked_tracks], favorites_count, all_track_ids)
+    favorites = apply_global_cap(
+      select_favorites(analysis_data[:tracks][:ranked_tracks], favorites_count, all_track_ids)
+    )
     favorites.each { |t| mark_seen(t, all_track_ids) }
 
-    genre_discoveries = get_genre_discoveries(
-      analysis_data[:artists][:ranked_artists], genre_discovery_count, all_track_ids
+    genre_discoveries = apply_global_cap(
+      get_genre_discoveries(
+        analysis_data[:artists][:ranked_artists], genre_discovery_count, all_track_ids
+      )
     )
     genre_discoveries.each { |t| mark_seen(t, all_track_ids) }
 
-    era_hits = get_era_hits(birth_year, era_hits_count, all_track_ids)
+    era_hits = apply_global_cap(get_era_hits(birth_year, era_hits_count, all_track_ids))
     era_hits.each { |t| mark_seen(t, all_track_ids) }
 
     all_tracks = intelligent_shuffle(favorites, genre_discoveries, era_hits)
@@ -119,12 +128,20 @@ class PlaylistGeneratorService
     era_hits = []
     seen_track_ids = Set.new(exclude_track_ids)
 
+    nostalgic_tracks = fetch_nostalgic_artist_tracks(target_count, seen_track_ids)
+    nostalgic_tracks.each do |track|
+      era_hits << track
+      mark_seen(track, seen_track_ids)
+    end
+
     era_ranges.each do |era|
       era_target = distribution[era[:name].to_sym]
       next if era_target.nil? || era_target.zero?
+      break if era_hits.length >= target_count
 
       era_tracks = search_era_hits(era, era_target, seen_track_ids)
       era_tracks.each do |track|
+        break if era_hits.length >= target_count
         era_hits << track
         mark_seen(track, seen_track_ids)
       end
@@ -179,6 +196,40 @@ class PlaylistGeneratorService
 
   private
 
+  def seed_artist_counts(existing_tracks)
+    counts = Hash.new(0)
+    (existing_tracks || []).each do |track|
+      key = primary_artist_key(track)
+      counts[key] += 1 if key
+    end
+    counts
+  end
+
+  # Primary artist key used for the global cap. Uses normalized primary artist NAME
+  # (not id) so that seeded DB tracks — which only persist artist names — use the
+  # same key as fresh Spotify API candidates.
+  def primary_artist_key(track)
+    name = track.dig("artists", 0, "name") || track.dig(:artists, 0, :name)
+    return nil if name.blank?
+    name.to_s.downcase.strip
+  end
+
+  def apply_global_cap(tracks)
+    return tracks if @artist_counts.nil?
+
+    tracks.select do |track|
+      key = primary_artist_key(track)
+      if key.nil?
+        true
+      elsif @artist_counts[key] >= GLOBAL_MAX_PER_ARTIST
+        false
+      else
+        @artist_counts[key] += 1
+        true
+      end
+    end
+  end
+
   def reconcile_to_target(all_tracks, target_count, ranked_tracks, used_ids)
     if all_tracks.length > target_count
       return { tracks: all_tracks.first(target_count), extras: [] }
@@ -187,21 +238,11 @@ class PlaylistGeneratorService
     shortfall = target_count - all_tracks.length
     return { tracks: all_tracks, extras: [] } if shortfall.zero?
 
-    artist_counts = build_artist_counts(all_tracks)
-    extras = collect_overfetch_extras(ranked_tracks, shortfall, used_ids, artist_counts)
+    extras = collect_overfetch_extras(ranked_tracks, shortfall, used_ids)
     { tracks: all_tracks + extras, extras: extras }
   end
 
-  def build_artist_counts(tracks)
-    counts = Hash.new(0)
-    tracks.each do |track|
-      artist_id = track.dig("artists", 0, "id")
-      counts[artist_id] += 1
-    end
-    counts
-  end
-
-  def collect_overfetch_extras(ranked_tracks, needed, used_ids, artist_counts)
+  def collect_overfetch_extras(ranked_tracks, needed, used_ids)
     extras = []
 
     ranked_tracks.each do |track|
@@ -209,12 +250,12 @@ class PlaylistGeneratorService
       next if used_ids.include?(track["id"])
       next if duplicate_signature?(track)
 
-      artist_id = track.dig("artists", 0, "id")
-      next if artist_counts[artist_id] >= MAX_PER_ARTIST
+      key = primary_artist_key(track)
+      next if key && @artist_counts[key] >= GLOBAL_MAX_PER_ARTIST
 
       extras << track.merge("source" => "reconciliation")
       mark_seen(track, used_ids)
-      artist_counts[artist_id] += 1
+      @artist_counts[key] += 1 if key
     end
 
     extras
@@ -222,13 +263,6 @@ class PlaylistGeneratorService
 
   def search_era_hits(era, target_count, seen_track_ids)
     tracks = []
-
-    if era[:name] == "formative"
-      tracks.concat(fetch_nostalgic_artist_tracks(target_count, seen_track_ids))
-    end
-
-    return tracks if tracks.length >= target_count
-
     shuffled_genres = SEARCH_GENRES.shuffle
 
     shuffled_genres.each do |genre|
@@ -256,27 +290,35 @@ class PlaylistGeneratorService
     tracks
   end
 
+  # Pool nostalgic artists from ALL eras, deduped by normalized name (the model
+  # stores only names; there is no artist_spotify_id column to key on).
+  def unique_nostalgic_artists
+    seen = Set.new
+    @user.nostalgic_artists.each_with_object([]) do |na, acc|
+      key = na.name.to_s.downcase.strip
+      next if key.empty? || seen.include?(key)
+      seen << key
+      acc << na
+    end
+  end
+
   def fetch_nostalgic_artist_tracks(target_count, seen_track_ids)
-    tracks = []
-    nostalgic_artists = @user.nostalgic_artists.where(era: "formative")
+    collected = []
 
-    nostalgic_artists.each do |nostalgic_artist|
-      break if tracks.length >= target_count
+    unique_nostalgic_artists.each do |nostalgic_artist|
+      break if collected.length >= target_count
 
-      search_results = @client.search(query: nostalgic_artist.name, types: ["artist"], limit: 5)
-      artist = search_results.dig("artists", "items", 0)
+      artist = resolve_nostalgic_artist(nostalgic_artist.name)
       next unless artist
 
-      top_tracks = @client.artist_top_tracks(artist_id: artist["id"])
-      eligible = (top_tracks["tracks"] || [])
-        .reject { |t| seen_track_ids.include?(t["id"]) }
-        .reject { |t| duplicate_signature?(t) }
-        .select { |t| (t["popularity"] || 0) >= MIN_POPULARITY }
-        .first(2)
+      top_tracks = (@client.artist_top_tracks(artist_id: artist["id"])["tracks"] || [])
 
-      eligible.each do |track|
-        break if tracks.length >= target_count
-        tracks << track.merge(
+      per_artist_remaining = [NOSTALGIC_PER_ARTIST_TARGET, target_count - collected.length].min
+      picks = pick_with_popularity_fallback(top_tracks, per_artist_remaining, seen_track_ids)
+
+      picks.each do |track|
+        break if collected.length >= target_count
+        collected << track.merge(
           "source" => "era_hit",
           "era" => "formative",
           "nostalgic" => true,
@@ -286,7 +328,37 @@ class PlaylistGeneratorService
       end
     end
 
-    tracks
+    collected
+  end
+
+  def resolve_nostalgic_artist(name)
+    search_results = @client.search(query: name, types: ["artist"], limit: 5)
+    search_results.dig("artists", "items", 0)
+  end
+
+  # Per-artist popularity fallback: try each tier (60, 30, 0) in order and
+  # supplement until we have `limit` tracks or exhaust the supply.
+  def pick_with_popularity_fallback(tracks, limit, seen_track_ids)
+    collected = []
+    used_ids = Set.new
+
+    NOSTALGIC_POPULARITY_TIERS.each do |floor|
+      break if collected.length >= limit
+
+      candidates = tracks
+        .reject { |t| seen_track_ids.include?(t["id"]) }
+        .reject { |t| used_ids.include?(t["id"]) }
+        .reject { |t| duplicate_signature?(t) }
+        .select { |t| (t["popularity"] || 0) >= floor }
+
+      candidates.each do |track|
+        break if collected.length >= limit
+        collected << track
+        used_ids << track["id"]
+      end
+    end
+
+    collected
   end
 
   def safe_search(query, offset: 0)

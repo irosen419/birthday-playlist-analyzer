@@ -78,6 +78,7 @@ module Api
         birth_year: birth_year,
         target_count: target_count,
         exclude_track_ids: locked_track_ids,
+        existing_tracks: existing_tracks_for_cap_seed,
         favorites_ratio: config[:favorites_ratio],
         discovery_ratio: config[:discovery_ratio],
         era_hits_ratio: config[:era_hits_ratio]
@@ -112,6 +113,15 @@ module Api
     end
 
     private
+
+    # Shape existing playlist tracks into the minimal structure the generator
+    # needs to seed its per-artist cap counter (primary artist name only).
+    def existing_tracks_for_cap_seed
+      @playlist.playlist_tracks.includes(:track).map do |pt|
+        primary_name = (pt.track.artist_names || []).first
+        { "artists" => [{ "name" => primary_name }] }
+      end
+    end
 
     def set_playlist
       @playlist = current_user.playlists.find_by(id: params[:id])

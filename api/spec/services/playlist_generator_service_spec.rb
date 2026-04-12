@@ -210,7 +210,7 @@ RSpec.describe PlaylistGeneratorService do
         end
       end
 
-      it "enforces MAX_PER_ARTIST in reconciliation backfill" do
+      it "enforces the global per-artist cap in reconciliation backfill" do
         dominator_id = "dominator_artist"
         dominated_tracks = (1..20).map do |i|
           make_track.call(
@@ -247,7 +247,7 @@ RSpec.describe PlaylistGeneratorService do
           t.dig("artists", 0, "id") == dominator_id
         end
 
-        expect(dominator_tracks.length).to be <= described_class::MAX_PER_ARTIST
+        expect(dominator_tracks.length).to be <= described_class::GLOBAL_MAX_PER_ARTIST
       end
 
       it "returns fewer tracks only when supply is genuinely exhausted" do
@@ -258,6 +258,7 @@ RSpec.describe PlaylistGeneratorService do
                 id: "only_#{i}",
                 name: "Only #{i}",
                 artist_id: "only_artist_#{i}",
+                artist_name: "Only Artist #{i}",
                 popularity: 80
               ).merge("total_weight" => 1.0)
             end
@@ -667,6 +668,290 @@ RSpec.describe PlaylistGeneratorService do
       # The top genres should still appear frequently, but order should vary
       expect(first_run_genres).not_to be_empty
       expect(second_run_genres).not_to be_empty
+    end
+  end
+
+  describe "nostalgic artists pooled across all eras" do
+    let(:nostalgic_ranked_artists) do
+      (1..60).map do |i|
+        { "id" => "artist_#{i}", "name" => "Artist #{i}", "genres" => ["pop"] }
+      end
+    end
+
+    def stub_search_returning_artist(artist_name, artist_id)
+      allow(spotify_client).to receive(:search) do |**kwargs|
+        query = kwargs[:query].to_s
+        types = kwargs[:types] || []
+        if types.include?("artist") && query == artist_name
+          {
+            "tracks" => { "items" => [] },
+            "artists" => { "items" => [{ "id" => artist_id, "name" => artist_name }] }
+          }
+        else
+          { "tracks" => { "items" => [] }, "artists" => { "items" => [] } }
+        end
+      end
+    end
+
+    it "contributes tracks from nostalgic artists tagged high_school" do
+      user.nostalgic_artists.create!(name: "Blink-182", era: "high_school")
+      stub_search_returning_artist("Blink-182", "blink_id")
+
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "blink_id").and_return({
+        "tracks" => [
+          make_track.call(id: "blink_1", name: "Blink Song 1", artist_id: "blink_id", artist_name: "Blink-182", popularity: 85),
+          make_track.call(id: "blink_2", name: "Blink Song 2", artist_id: "blink_id", artist_name: "Blink-182", popularity: 80)
+        ]
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      nostalgic_tracks = result.select { |t| t["nostalgic"] }
+      expect(nostalgic_tracks.map { |t| t["nostalgic_artist"] }).to include("Blink-182")
+    end
+
+    it "contributes tracks from nostalgic artists tagged college" do
+      user.nostalgic_artists.create!(name: "The Strokes", era: "college")
+      stub_search_returning_artist("The Strokes", "strokes_id")
+
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "strokes_id").and_return({
+        "tracks" => [
+          make_track.call(id: "strokes_1", name: "Strokes Song 1", artist_id: "strokes_id", artist_name: "The Strokes", popularity: 85)
+        ]
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      expect(result.map { |t| t["nostalgic_artist"] }).to include("The Strokes")
+    end
+
+    it "pools the same artist added under multiple eras only once" do
+      user.nostalgic_artists.create!(name: "Weezer", era: "high_school")
+      user.nostalgic_artists.create!(name: "Weezer", era: "college")
+      stub_search_returning_artist("Weezer", "weezer_id")
+
+      top_tracks_call_count = 0
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "weezer_id") do
+        top_tracks_call_count += 1
+        {
+          "tracks" => [
+            make_track.call(id: "weezer_1", name: "Weezer Song", artist_id: "weezer_id", artist_name: "Weezer", popularity: 85)
+          ]
+        }
+      end
+
+      generator.get_era_hits(1991, 20, Set.new)
+
+      expect(top_tracks_call_count).to eq(1)
+    end
+  end
+
+  describe "global per-artist cap across buckets" do
+    it "caps any primary artist at 4 occurrences in the generated result" do
+      hog_id = "hog_id"
+      hog_name = "Hogging Artist"
+      tracks = (1..15).map do |i|
+        make_track.call(
+          id: "hog_#{i}",
+          name: "Hog Song #{i}",
+          artist_id: hog_id,
+          artist_name: hog_name,
+          popularity: 90
+        ).merge("total_weight" => 2.0)
+      end
+      ranked_artists = [{ "id" => hog_id, "name" => hog_name, "genres" => ["pop"] }]
+
+      allow(spotify_client).to receive(:search).and_return({
+        "tracks" => {
+          "items" => (1..10).map { |i|
+            make_track.call(id: "srch_hog_#{i}", name: "Hog S#{i}", artist_id: hog_id, artist_name: hog_name, popularity: 90)
+          }
+        },
+        "artists" => { "items" => [] }
+      })
+      allow(spotify_client).to receive(:get_recommendations).and_return({
+        "tracks" => (1..10).map { |i|
+          make_track.call(id: "rec_hog_#{i}", name: "Hog R#{i}", artist_id: hog_id, artist_name: hog_name, popularity: 90)
+        }
+      })
+
+      user.nostalgic_artists.create!(name: hog_name, era: "formative")
+      allow(spotify_client).to receive(:search).with(query: hog_name, types: ["artist"], limit: 5).and_return({
+        "artists" => { "items" => [{ "id" => hog_id, "name" => hog_name }] },
+        "tracks" => { "items" => [] }
+      })
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: hog_id).and_return({
+        "tracks" => (1..10).map { |i|
+          make_track.call(id: "top_hog_#{i}", name: "Hog T#{i}", artist_id: hog_id, artist_name: hog_name, popularity: 85)
+        }
+      })
+
+      result = generator.generate(
+        { tracks: { ranked_tracks: tracks }, artists: { ranked_artists: ranked_artists } },
+        birth_year: 1991,
+        target_count: 30
+      )
+
+      hog_tracks = result[:tracks].select { |t| (t.dig("artists", 0, "name") || "").downcase == hog_name.downcase }
+      expect(hog_tracks.length).to be <= described_class::GLOBAL_MAX_PER_ARTIST
+    end
+
+    it "seeds the cap counter from existing_tracks passed in on regenerate" do
+      # Simulate playlist that already has 4 tracks by "Smash Mouth" (locked).
+      existing = (1..4).map do |i|
+        {
+          "artists" => [{ "name" => "Smash Mouth" }]
+        }
+      end
+
+      # Favorites bucket full of Smash Mouth candidates, but should yield 0 since cap is already saturated.
+      tracks = (1..10).map do |i|
+        make_track.call(
+          id: "sm_#{i}",
+          name: "All Star #{i}",
+          artist_id: "smashmouth_id",
+          artist_name: "Smash Mouth",
+          popularity: 90
+        ).merge("total_weight" => 2.0)
+      end
+
+      allow(spotify_client).to receive(:search).and_return({
+        "tracks" => { "items" => [] },
+        "artists" => { "items" => [] }
+      })
+      allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+
+      result = generator.generate(
+        { tracks: { ranked_tracks: tracks }, artists: { ranked_artists: [] } },
+        birth_year: 1991,
+        target_count: 10,
+        existing_tracks: existing
+      )
+
+      sm_tracks = result[:tracks].select { |t| (t.dig("artists", 0, "name") || "").downcase == "smash mouth" }
+      expect(sm_tracks.length).to eq(0)
+    end
+
+    it "counts only the primary artist toward the cap, not featured artists" do
+      primary_id = "primary_id"
+      primary_name = "Primary"
+      # 5 tracks where Primary is the primary artist
+      primary_tracks = (1..5).map do |i|
+        make_track.call(
+          id: "p_#{i}",
+          name: "P#{i}",
+          artist_id: primary_id,
+          artist_name: primary_name,
+          popularity: 90
+        ).merge("total_weight" => 2.0)
+      end
+      # 5 tracks where Primary is only a feature; different primary artist each
+      feature_tracks = (1..5).map do |i|
+        {
+          "id" => "f_#{i}",
+          "name" => "F#{i}",
+          "artists" => [
+            { "id" => "lead_#{i}", "name" => "Lead #{i}" },
+            { "id" => primary_id, "name" => primary_name }
+          ],
+          "popularity" => 90,
+          "duration_ms" => 200_000,
+          "uri" => "spotify:track:f_#{i}",
+          "total_weight" => 1.9
+        }
+      end
+
+      allow(spotify_client).to receive(:search).and_return({
+        "tracks" => { "items" => [] },
+        "artists" => { "items" => [] }
+      })
+      allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+
+      result = generator.generate(
+        {
+          tracks: { ranked_tracks: primary_tracks + feature_tracks },
+          artists: { ranked_artists: [] }
+        },
+        birth_year: 1991,
+        target_count: 20
+      )
+
+      primary_as_primary = result[:tracks].count { |t| t.dig("artists", 0, "id") == primary_id }
+      feature_contribs = result[:tracks].count { |t| t.dig("artists", 0, "id")&.start_with?("lead_") }
+
+      expect(primary_as_primary).to be <= described_class::GLOBAL_MAX_PER_ARTIST
+      expect(feature_contribs).to eq(5)
+    end
+  end
+
+  describe "tiered popularity fallback for nostalgic artists" do
+    before do
+      allow(spotify_client).to receive(:search) do |**kwargs|
+        types = kwargs[:types] || []
+        query = kwargs[:query].to_s
+        if types.include?("artist")
+          artist_id = "#{query.downcase.gsub(/\W/, '_')}_id"
+          { "tracks" => { "items" => [] }, "artists" => { "items" => [{ "id" => artist_id, "name" => query }] } }
+        else
+          { "tracks" => { "items" => [] }, "artists" => { "items" => [] } }
+        end
+      end
+      allow(spotify_client).to receive(:get_recommendations).and_return({ "tracks" => [] })
+    end
+
+    it "uses popularity >= 30 tracks when an artist has none at popularity >= 60" do
+      user.nostalgic_artists.create!(name: "MidPop", era: "formative")
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "midpop_id").and_return({
+        "tracks" => (1..6).map { |i|
+          make_track.call(id: "mid_#{i}", name: "Mid #{i}", artist_id: "midpop_id", artist_name: "MidPop", popularity: 35)
+        }
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      mid_tracks = result.select { |t| t["nostalgic_artist"] == "MidPop" }
+      expect(mid_tracks.length).to eq(4)
+    end
+
+    it "falls back to >= 0 popularity when an artist has only low-popularity tracks" do
+      user.nostalgic_artists.create!(name: "LowPop", era: "formative")
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "lowpop_id").and_return({
+        "tracks" => (1..6).map { |i|
+          make_track.call(id: "low_#{i}", name: "Low #{i}", artist_id: "lowpop_id", artist_name: "LowPop", popularity: 10)
+        }
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      low_tracks = result.select { |t| t["nostalgic_artist"] == "LowPop" }
+      expect(low_tracks.length).to eq(4)
+    end
+
+    it "applies the popularity fallback per-artist (doesn't lower floor for other artists)" do
+      user.nostalgic_artists.create!(name: "LowA", era: "formative")
+      user.nostalgic_artists.create!(name: "HighB", era: "formative")
+
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "lowa_id").and_return({
+        "tracks" => (1..6).map { |i|
+          make_track.call(id: "la_#{i}", name: "LA #{i}", artist_id: "lowa_id", artist_name: "LowA", popularity: 10)
+        }
+      })
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "highb_id").and_return({
+        "tracks" => (1..6).map { |i|
+          # Include a low-pop track — but HighB has >=60 tracks too
+          pop = i <= 4 ? 80 : 10
+          make_track.call(id: "hb_#{i}", name: "HB #{i}", artist_id: "highb_id", artist_name: "HighB", popularity: pop)
+        }
+      })
+
+      result = generator.get_era_hits(1991, 30, Set.new)
+
+      hb_tracks = result.select { |t| t["nostalgic_artist"] == "HighB" }
+      expect(hb_tracks).not_to be_empty
+      # HighB's selections must all be >=60 because its ≥60 supply (4 tracks) satisfies the quota
+      hb_tracks.each do |t|
+        expect(t["popularity"]).to be >= 60
+      end
     end
   end
 end

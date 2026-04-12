@@ -22,6 +22,9 @@ For this to work well, Nostalgic Artists need to live on a User and Playlist lev
 
 ## Bugs
 
+### Persist Spotify artist IDs on tracks and nostalgic artists
+**⚠️ High leverage — recommended as a prerequisite for most future artist-related work.** Today, `tracks.artist_names` is a jsonb array of strings and `nostalgic_artists` stores only `name` + `era`. No stable artist identifier is persisted anywhere, which forces every cross-artist operation (cap enforcement, dedup, "more from this artist", Claude-API era generation, unfollow-on-delete, etc.) to do fuzzy name matching — with real collision risk for common names ("Nirvana", "Genesis", "Eagles"). See `docs/ARTIST-ID-MIGRATION.md` for the full plan, scope, and backfill strategy. Blocks clean implementation of the Era-based Claude API feature above.
+
 ### Nostalgic artists barely influence generation
 Rework how nostalgic artists feed into playlist generation. Current behavior (in `api/app/services/playlist_generator_service.rb`):
 - Only the **formative** era (ages 10–12) actually consults `user.nostalgic_artists`. Entries tagged `high_school` or `college` are silently ignored. All three eras should contribute.
