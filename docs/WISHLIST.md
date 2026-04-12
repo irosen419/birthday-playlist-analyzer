@@ -13,10 +13,12 @@ When adding an item, use this shape:
 
 ---
 
-## Features
+## App cleanup
 
-### Remove default Nostalgic Artists
-Remove having NSYNC, Backstreet Boys, Britney Spears and Smash Mouth as backstreet boys. We should be able to add our own, per playlist - no defaults. Pre-cursor to 'Era-based artist generation via Claude API' below
+### Remove legacy CLI app code
+The original Node/Express CLI app (`src/`, root-level `*.js` files, etc.) was replaced by the Rails API + React client monorepo. The `src/` directory has been removed, but other legacy files at the root level may remain (e.g., `analyze.js`, `create-playlist.js`, `index.js`, unused npm configs, stale references). These should be identified and cleaned up.
+
+## Features
 
 ### Generation Config Before Every Playlist Creation
 When the user clicks Create Playlist, before the playlist is actually generated, a modal should appear with the generation settings (ratios, target song count) and options for nostalgic artist entry. This applies to every new playlist, not just the first — each playlist gets independently configured from the start. The config component should be extracted out since it already lives on the playlist page.
