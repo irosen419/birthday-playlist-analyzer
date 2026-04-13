@@ -192,7 +192,7 @@ Push to `master` → Render auto-deploys both services. First request after idle
 - **Before committing** any frontend change, run `cd client && npx tsc -b` — Vite's production build on Render fails on type errors, unused imports, etc.
 - **Commit etiquette:** branch for non-trivial features (pattern: `feature/<name>`), merge with `--no-ff`, delete the branch after merge. Straight-to-master is fine for small fixes.
 - **Before touching recently-reviewed code**, skim `docs/PR-FOLLOWUPS.md` — it tracks concrete items a reviewer flagged but didn't block the PR on. If what you're about to work on overlaps an entry there, consider closing the entry at the same time.
-- **PR review tracking**: When reviewing a PR, create (or update) `docs/PR-REVIEW-{number}.md` to track findings, decisions, and deferred items across review rounds. On subsequent reviews of the same PR, check the existing doc to verify previously deferred items are still intentionally deferred. Delete the doc when the PR is merged. If docs from already-merged PRs exist, delete those too.
+- **PR review tracking**: When reviewing a PR, create (or update) `docs/PR-REVIEW-{number}.md` to track findings, decisions, and deferred items across review rounds. On subsequent reviews of the same PR, check the existing doc to verify previously deferred items are still intentionally deferred. Delete the doc when the PR is merged. If docs from already-merged PRs exist, delete those too. This file is in the `.gitignore`. NEVER try to add it to git.
 - **Memory files at `~/.claude/projects/-Users-irosen419-code-birthday-playlist-analyzer/memory/`** auto-load every session and complement this file with user-specific context (profile, preferences, running feature roadmap).
 
 ---

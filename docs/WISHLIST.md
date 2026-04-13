@@ -15,15 +15,15 @@ When adding an item, use this shape:
 
 ## Features
 
-### Generation Config Before Every Playlist Creation
-When the user clicks Create Playlist, before the playlist is actually generated, a modal should appear with the generation settings (ratios, target song count) and options for nostalgic artist entry. This applies to every new playlist, not just the first — each playlist gets independently configured from the start. The config component should be extracted out since it already lives on the playlist page.
-
 ### Era-based artist generation via Claude API
 Replace any hardcoded default nostalgic artists with dynamically generated top 5–10 artists per life era (ages 10–12, high school ~14–18, college ~18–22, +TBD) derived from the honoree's birth year. Claude API acts as the oracle: prompt it for artist names per era, then resolve those names to Spotify artist IDs for playlist building. Claude stays as the intelligence layer; Spotify stays as the playback/playlist layer. Last.fm `chart.getTopArtists` was considered as an alternative but adds a dependency. Cost for personal use is negligible (~500–1000 tokens per request, fractions of a cent per playlist); if it ever grows, Batch API (50% off, 24h async) and prompt caching are available levers.
 
 For this to work well, Nostalgic Artists need to live on a User and Playlist level. Users should be able to search for, lock in, remove and re-roll nostalgic artists. If they explicitly remove an artist, that artist should still be searchable but not appear in a re-roll, which means they'll need to somehow be built into the Claude prompt.
 
 ## Bugs
+
+### Persist Spotify artist IDs on tracks and nostalgic artists
+**⚠️ High leverage — recommended as a prerequisite for most future artist-related work.** Today, `tracks.artist_names` is a jsonb array of strings and `nostalgic_artists` stores only `name` + `era`. No stable artist identifier is persisted anywhere, which forces every cross-artist operation (cap enforcement, dedup, "more from this artist", Claude-API era generation, unfollow-on-delete, etc.) to do fuzzy name matching — with real collision risk for common names ("Nirvana", "Genesis", "Eagles"). See `docs/ARTIST-ID-MIGRATION.md` for the full plan, scope, and backfill strategy. Blocks clean implementation of the Era-based Claude API feature above.
 
 ### Nostalgic artists barely influence generation
 Rework how nostalgic artists feed into playlist generation. Current behavior (in `api/app/services/playlist_generator_service.rb`):
