@@ -25,7 +25,7 @@ export default function LoginPage() {
 
         <p className="mb-8 text-[#b3b3b3]">
           Build the perfect playlist for your generation. Curate tracks from
-          your birth year and publish straight to Spotify.
+          throughout your life and publish straight to Spotify.
         </p>
 
         {errorMessage && (
