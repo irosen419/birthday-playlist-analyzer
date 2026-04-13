@@ -38,3 +38,6 @@ User-facing feature history, curated. Not a mirror of git log — only entries w
 
 ### Cleanup
 - Deleted legacy Node/Express CLI (`src/`, ~5200 lines). (#11)
+
+### Fixes
+- Track search in the playlist editor returned no results — frontend expected a bare array but the endpoint wraps tracks under `{ tracks: [...] }`. Error was swallowed by a silent catch; catch now logs.
