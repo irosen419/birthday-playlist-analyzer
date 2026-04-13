@@ -41,6 +41,7 @@ declare namespace Spotify {
     connect(): Promise<boolean>;
     disconnect(): void;
     togglePlay(): Promise<void>;
+    seek(positionMs: number): Promise<void>;
     getCurrentState(): Promise<SpotifyPlayerState | null>;
 
     addListener(

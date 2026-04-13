@@ -382,7 +382,7 @@ export default function PlaylistEditor() {
       <PlaylistTrackList
         tracks={tracks}
         onReorder={handleReorder}
-        onPlay={playTrack}
+        onPlay={(uri) => playTrack(uri, tracks.map((t) => t.uri))}
         onToggleLock={handleToggleLock}
         onRemove={handleRemove}
         onMove={handleMove}

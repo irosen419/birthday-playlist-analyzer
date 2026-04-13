@@ -11,8 +11,17 @@ export function useSpotifyPlayer() {
   const [currentTrack, setCurrentTrack] = useState<PlayerTrack | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const playerRef = useRef<Spotify.Player | null>(null);
+  const positionAnchorRef = useRef<{ position: number; timestamp: number } | null>(null);
+  const pausedRef = useRef(true);
+  const queueRef = useRef<string[]>([]);
+  const currentUriRef = useRef<string | null>(null);
+  const positionRef = useRef(0);
+
+  const RESTART_THRESHOLD_MS = 1000;
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +61,7 @@ export function useSpotifyPlayer() {
           }
 
           const track = state.track_window.current_track;
+          currentUriRef.current = track.uri;
           setCurrentTrack({
             id: track.id,
             name: track.name,
@@ -61,6 +71,14 @@ export function useSpotifyPlayer() {
             uri: track.uri,
           });
           setPaused(state.paused);
+          pausedRef.current = state.paused;
+          setDuration(state.duration);
+          setPosition(state.position);
+          positionRef.current = state.position;
+          positionAnchorRef.current = {
+            position: state.position,
+            timestamp: Date.now(),
+          };
         });
 
         const errorEvents = [
@@ -114,13 +132,17 @@ export function useSpotifyPlayer() {
   }, []);
 
   const playTrack = useCallback(
-    async (uri: string) => {
+    async (uri: string, queueUris?: string[]) => {
       if (!deviceId) {
         console.warn('Player not ready — no device ID');
         return;
       }
+      if (queueUris && queueUris.length > 0) {
+        queueRef.current = queueUris;
+      }
       try {
         await play({ device_id: deviceId, uris: [uri] });
+        currentUriRef.current = uri;
       } catch (err) {
         console.error('Play failed:', err);
       }
@@ -132,17 +154,70 @@ export function useSpotifyPlayer() {
     await playerRef.current?.togglePlay();
   }, []);
 
+  const seekInternal = useCallback(async (ms: number) => {
+    const player = playerRef.current;
+    if (!player) return;
+    await player.seek(Math.max(0, ms));
+    setPosition(Math.max(0, ms));
+    positionAnchorRef.current = { position: Math.max(0, ms), timestamp: Date.now() };
+  }, []);
+
   const next = useCallback(async () => {
     if (!deviceId) return;
-    const { nextTrack } = await import('../api/player');
-    await nextTrack({ device_id: deviceId });
+    const queue = queueRef.current;
+    const currentUri = currentUriRef.current;
+    if (queue.length === 0 || !currentUri) return;
+    const idx = queue.indexOf(currentUri);
+    if (idx < 0 || idx >= queue.length - 1) return;
+    try {
+      await play({ device_id: deviceId, uris: [queue[idx + 1]] });
+      currentUriRef.current = queue[idx + 1];
+    } catch (err) {
+      console.error('Next failed:', err);
+    }
   }, [deviceId]);
+
+  const seek = useCallback(async (ms: number) => {
+    const clamped = Math.max(0, Math.min(ms, duration || ms));
+    await seekInternal(clamped);
+  }, [duration, seekInternal]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (pausedRef.current) return;
+      const anchor = positionAnchorRef.current;
+      if (!anchor) return;
+      const next = anchor.position + (Date.now() - anchor.timestamp);
+      positionRef.current = next;
+      setPosition(next);
+    }, 250);
+    return () => clearInterval(id);
+  }, []);
 
   const previous = useCallback(async () => {
     if (!deviceId) return;
-    const { previousTrack } = await import('../api/player');
-    await previousTrack({ device_id: deviceId });
-  }, [deviceId]);
+    if (positionRef.current > RESTART_THRESHOLD_MS) {
+      await seekInternal(0);
+      return;
+    }
+    const queue = queueRef.current;
+    const currentUri = currentUriRef.current;
+    if (queue.length === 0 || !currentUri) {
+      await seekInternal(0);
+      return;
+    }
+    const idx = queue.indexOf(currentUri);
+    if (idx <= 0) {
+      await seekInternal(0);
+      return;
+    }
+    try {
+      await play({ device_id: deviceId, uris: [queue[idx - 1]] });
+      currentUriRef.current = queue[idx - 1];
+    } catch (err) {
+      console.error('Previous failed:', err);
+    }
+  }, [deviceId, seekInternal]);
 
   return {
     isReady,
@@ -154,5 +229,8 @@ export function useSpotifyPlayer() {
     togglePlayPause,
     next,
     previous,
+    position,
+    duration,
+    seek,
   };
 }
