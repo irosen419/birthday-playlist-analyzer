@@ -7,6 +7,7 @@ class PlaylistGeneratorService
   GLOBAL_MAX_PER_ARTIST = 4
   NOSTALGIC_PER_ARTIST_TARGET = 4
   NOSTALGIC_POPULARITY_TIERS = [60, 30, 0].freeze
+  NOSTALGIC_ERA_SHARE = 0.5
   SEARCH_GENRES = ["pop", "rock", "hip hop", "r&b"].freeze
   MAX_SEARCH_OFFSET = 80
   SCORE_JITTER_RANGE = 0.15
@@ -128,7 +129,8 @@ class PlaylistGeneratorService
     era_hits = []
     seen_track_ids = Set.new(exclude_track_ids)
 
-    nostalgic_tracks = fetch_nostalgic_artist_tracks(target_count, seen_track_ids)
+    nostalgic_budget = (target_count * NOSTALGIC_ERA_SHARE).ceil
+    nostalgic_tracks = fetch_nostalgic_artist_tracks(nostalgic_budget, seen_track_ids)
     nostalgic_tracks.each do |track|
       era_hits << track
       mark_seen(track, seen_track_ids)

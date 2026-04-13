@@ -744,6 +744,66 @@ RSpec.describe PlaylistGeneratorService do
 
       expect(top_tracks_call_count).to eq(1)
     end
+
+    it "caps nostalgic tracks at 50% of era_hits target so distributed era search still contributes" do
+      # 10 nostalgic artists, each with 4 high-popularity top tracks. Without a cap,
+      # nostalgic would fill all 20 era_hits slots and short-circuit the genre-era search.
+      nostalgic_names = (1..10).map { |i| "Nostalgic #{i}" }
+      nostalgic_names.each { |name| user.nostalgic_artists.create!(name: name, era: "formative") }
+
+      artist_lookup = nostalgic_names.each_with_object({}) do |name, acc|
+        acc[name] = "nostalgic_id_#{name.parameterize(separator: '_')}"
+      end
+
+      allow(spotify_client).to receive(:search) do |**kwargs|
+        query = kwargs[:query].to_s
+        types = kwargs[:types] || []
+        if types.include?("artist") && artist_lookup.key?(query)
+          {
+            "tracks" => { "items" => [] },
+            "artists" => { "items" => [{ "id" => artist_lookup[query], "name" => query }] }
+          }
+        else
+          {
+            "tracks" => {
+              "items" => (1..5).map do |i|
+                make_track.call(
+                  id: "generic_era_#{SecureRandom.hex(4)}_#{i}",
+                  name: "Generic Era #{i}",
+                  artist_id: "generic_era_artist_#{i}",
+                  artist_name: "Generic Era Artist #{i}",
+                  popularity: 80
+                )
+              end
+            },
+            "artists" => { "items" => [] }
+          }
+        end
+      end
+
+      nostalgic_names.each do |name|
+        artist_id = artist_lookup[name]
+        allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: artist_id).and_return({
+          "tracks" => (1..4).map do |i|
+            make_track.call(
+              id: "#{artist_id}_top_#{i}",
+              name: "#{name} Song #{i}",
+              artist_id: artist_id,
+              artist_name: name,
+              popularity: 85
+            )
+          end
+        })
+      end
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      nostalgic_tracks = result.select { |t| t["nostalgic"] }
+      non_nostalgic_tracks = result.reject { |t| t["nostalgic"] }
+
+      expect(nostalgic_tracks.length).to be <= 10
+      expect(non_nostalgic_tracks).not_to be_empty
+    end
   end
 
   describe "global per-artist cap across buckets" do
