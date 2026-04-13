@@ -6,6 +6,8 @@ class Playlist < ApplicationRecord
   has_many :playlist_tracks, -> { order(:position) }, dependent: :destroy
   has_many :tracks, through: :playlist_tracks
 
+  before_validation :assign_default_name, on: :create
+
   validates :name, presence: true
   validates :target_song_count, inclusion: { in: VALID_SONG_COUNT_RANGE }, allow_nil: true
 
@@ -27,6 +29,16 @@ class Playlist < ApplicationRecord
   end
 
   private
+
+  def assign_default_name
+    return if name.present? || user.nil?
+
+    highest = user.playlists
+                  .pluck(:name)
+                  .filter_map { |n| n[/\APlaylist (\d+)\z/, 1]&.to_i }
+                  .max || 0
+    self.name = "Playlist #{highest + 1}"
+  end
 
   def ratios_must_sum_to_one
     total = (favorites_ratio || 0.3) + (discovery_ratio || 0.3) + (era_hits_ratio || 0.4)

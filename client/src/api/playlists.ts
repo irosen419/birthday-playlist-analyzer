@@ -84,7 +84,7 @@ export async function getPlaylist(id: number): Promise<Playlist> {
 }
 
 export async function createPlaylist(params: {
-  name: string;
+  name?: string;
   birthYear?: number;
   favoritesRatio?: number;
   discoveryRatio?: number;

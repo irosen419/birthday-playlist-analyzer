@@ -114,9 +114,18 @@ RSpec.describe "Api::Playlists", type: :request do
     end
 
     it "returns errors for invalid params" do
-      post "/api/playlists", params: { name: "" }
+      post "/api/playlists", params: { target_song_count: 9999 }
 
       expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "defaults a blank name to the next 'Playlist N' for the user" do
+      create(:playlist, user: user, name: "Playlist 3")
+
+      post "/api/playlists", params: { name: "" }
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["name"]).to eq("Playlist 4")
     end
 
     it "accepts generation config params" do
