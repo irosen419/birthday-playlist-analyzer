@@ -8,6 +8,7 @@ class PlaylistGeneratorService
   NOSTALGIC_PER_ARTIST_TARGET = 4
   NOSTALGIC_POPULARITY_TIERS = [60, 30, 0].freeze
   NOSTALGIC_ERA_SHARE = 0.5
+  NOSTALGIC_ERA_ORDER = %w[formative high_school college].freeze
   SEARCH_GENRES = ["pop", "rock", "hip hop", "r&b"].freeze
   MAX_SEARCH_OFFSET = 80
   SCORE_JITTER_RANGE = 0.15
@@ -294,21 +295,32 @@ class PlaylistGeneratorService
 
   # Pool nostalgic artists from ALL eras, deduped by normalized name (the model
   # stores only names; there is no artist_spotify_id column to key on).
+  # Returns an array of { record:, eras: [...] } so callers can see every era
+  # an artist was tagged under (an artist may appear in multiple eras per user).
   def unique_nostalgic_artists
-    seen = Set.new
-    @user.nostalgic_artists.each_with_object([]) do |na, acc|
+    grouped = {}
+    @user.nostalgic_artists.each do |na|
       key = na.name.to_s.downcase.strip
-      next if key.empty? || seen.include?(key)
-      seen << key
-      acc << na
+      next if key.empty?
+
+      grouped[key] ||= { record: na, eras: [] }
+      grouped[key][:eras] << na.era
+    end
+
+    grouped.values.map do |entry|
+      sorted_eras = entry[:eras].uniq.sort_by { |era| NOSTALGIC_ERA_ORDER.index(era) || NOSTALGIC_ERA_ORDER.length }
+      { record: entry[:record], eras: sorted_eras }
     end
   end
 
   def fetch_nostalgic_artist_tracks(target_count, seen_track_ids)
     collected = []
 
-    unique_nostalgic_artists.each do |nostalgic_artist|
+    unique_nostalgic_artists.each do |entry|
       break if collected.length >= target_count
+
+      nostalgic_artist = entry[:record]
+      era_label = entry[:eras].join(",")
 
       artist = resolve_nostalgic_artist(nostalgic_artist.name)
       next unless artist
@@ -322,7 +334,7 @@ class PlaylistGeneratorService
         break if collected.length >= target_count
         collected << track.merge(
           "source" => "era_hit",
-          "era" => "formative",
+          "era" => era_label,
           "nostalgic" => true,
           "nostalgic_artist" => nostalgic_artist.name
         )

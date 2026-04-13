@@ -745,6 +745,59 @@ RSpec.describe PlaylistGeneratorService do
       expect(top_tracks_call_count).to eq(1)
     end
 
+    it "tags tracks from a high_school-only nostalgic artist with era 'high_school'" do
+      user.nostalgic_artists.create!(name: "Blink-182", era: "high_school")
+      stub_search_returning_artist("Blink-182", "blink_id")
+
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "blink_id").and_return({
+        "tracks" => [
+          make_track.call(id: "blink_1", name: "Blink Song 1", artist_id: "blink_id", artist_name: "Blink-182", popularity: 85)
+        ]
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      blink_track = result.find { |t| t["nostalgic_artist"] == "Blink-182" }
+      expect(blink_track).not_to be_nil
+      expect(blink_track["era"]).to eq("high_school")
+    end
+
+    it "tags tracks from an artist tagged under multiple eras with a comma-joined label in canonical order" do
+      # Insert out of canonical order to prove sorting isn't insertion-order based.
+      user.nostalgic_artists.create!(name: "Weezer", era: "college")
+      user.nostalgic_artists.create!(name: "Weezer", era: "high_school")
+      stub_search_returning_artist("Weezer", "weezer_id")
+
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "weezer_id").and_return({
+        "tracks" => [
+          make_track.call(id: "weezer_1", name: "Weezer Song", artist_id: "weezer_id", artist_name: "Weezer", popularity: 85)
+        ]
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      weezer_track = result.find { |t| t["nostalgic_artist"] == "Weezer" }
+      expect(weezer_track).not_to be_nil
+      expect(weezer_track["era"]).to eq("high_school,college")
+    end
+
+    it "tags tracks from a formative-only nostalgic artist with era 'formative'" do
+      user.nostalgic_artists.create!(name: "NSYNC", era: "formative")
+      stub_search_returning_artist("NSYNC", "nsync_id")
+
+      allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "nsync_id").and_return({
+        "tracks" => [
+          make_track.call(id: "nsync_1", name: "NSYNC Song", artist_id: "nsync_id", artist_name: "NSYNC", popularity: 85)
+        ]
+      })
+
+      result = generator.get_era_hits(1991, 20, Set.new)
+
+      nsync_track = result.find { |t| t["nostalgic_artist"] == "NSYNC" }
+      expect(nsync_track).not_to be_nil
+      expect(nsync_track["era"]).to eq("formative")
+    end
+
     it "caps nostalgic tracks at 50% of era_hits target so distributed era search still contributes" do
       # 10 nostalgic artists, each with 4 high-popularity top tracks. Without a cap,
       # nostalgic would fill all 20 era_hits slots and short-circuit the genre-era search.
