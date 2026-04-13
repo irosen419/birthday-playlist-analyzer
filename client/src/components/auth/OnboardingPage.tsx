@@ -42,15 +42,15 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#121212] px-4">
       <div className="w-full max-w-md rounded-xl bg-[#181818] p-10 text-center">
-        <div className="mb-6 text-5xl">🎉</div>
+        <div className="mb-6 text-5xl">🎧</div>
 
         <h1 className="mb-4 text-3xl font-bold text-white">
-          Welcome to Birthday Playlist Analyzer!
+          Welcome to EraPlay!
         </h1>
 
         <p className="mb-8 text-[#b3b3b3]">
           To get started, tell us what year you were born. We'll use this to
-          curate the perfect birthday playlist for you.
+          curate the perfect playlist for your generation.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">

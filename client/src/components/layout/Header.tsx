@@ -40,9 +40,9 @@ export default function Header() {
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 md:px-6">
         <Link to="/playlists" className="flex items-center gap-2 no-underline">
-          <span className="text-2xl">🎉</span>
+          <span className="text-2xl">🎧</span>
           <span className="hidden text-lg font-bold text-white sm:inline">
-            Birthday Playlist Analyzer
+            EraPlay
           </span>
         </Link>
 

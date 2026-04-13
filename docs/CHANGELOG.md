@@ -36,6 +36,9 @@ User-facing feature history, curated. Not a mirror of git log — only entries w
 - Publish to Spotify (creates or updates a user playlist) with confirmation + "Open in Spotify" link.
 - Spotify Web Playback SDK player (Premium, desktop).
 
+### Branding
+- Rebranded from "Birthday Playlist Analyzer" to **EraPlay** — updated page title, login/onboarding headings and taglines, header nav, Spotify Connect device name, and favicon. (#15)
+
 ### Cleanup
 - Deleted legacy Node/Express CLI (`src/`, ~5200 lines). (#11)
 
