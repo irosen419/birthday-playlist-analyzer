@@ -182,6 +182,22 @@ export function useSpotifyPlayer() {
     await seekInternal(clamped);
   }, [duration, seekInternal]);
 
+  const syncQueue = useCallback(async (uris: string[]) => {
+    queueRef.current = uris;
+    const currentUri = currentUriRef.current;
+    if (currentUri && !uris.includes(currentUri)) {
+      try {
+        await playerRef.current?.pause();
+      } catch (err) {
+        console.error('Pause on queue sync failed:', err);
+      }
+      currentUriRef.current = null;
+      setCurrentTrack(null);
+      setPaused(true);
+      pausedRef.current = true;
+    }
+  }, []);
+
   useEffect(() => {
     const id = setInterval(() => {
       if (pausedRef.current) return;
@@ -232,5 +248,6 @@ export function useSpotifyPlayer() {
     position,
     duration,
     seek,
+    syncQueue,
   };
 }

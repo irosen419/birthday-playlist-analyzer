@@ -13,6 +13,7 @@ interface PlayerContextType {
   next: () => Promise<void>;
   previous: () => Promise<void>;
   seek: (ms: number) => Promise<void>;
+  syncQueue: (uris: string[]) => Promise<void>;
 }
 
 interface PlayerProgressContextType {
@@ -41,6 +42,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       next: player.next,
       previous: player.previous,
       seek: player.seek,
+      syncQueue: player.syncQueue,
     }),
     [
       player.isReady,
@@ -53,6 +55,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       player.next,
       player.previous,
       player.seek,
+      player.syncQueue,
     ]
   );
 
@@ -84,6 +87,7 @@ export function usePlayer(): PlayerContextType {
       next: async () => {},
       previous: async () => {},
       seek: async () => {},
+      syncQueue: async () => {},
     };
   }
   return ctx;

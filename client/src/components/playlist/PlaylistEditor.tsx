@@ -33,7 +33,7 @@ export default function PlaylistEditor() {
   const playlistId = id ? Number(id) : undefined;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const { playTrack } = usePlayer();
+  const { playTrack, syncQueue } = usePlayer();
   const { user } = useAuth();
   const configRef = useRef<PlaylistConfigHandle>(null);
   const nostalgicRef = useRef<NostalgicArtistsEditorHandle>(null);
@@ -102,6 +102,14 @@ export default function PlaylistEditor() {
   const { isSaving, justSaved, flushSave } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
 
   const ratiosValid = areRatiosValid(generationConfig);
+
+  // Keep the player's queue in sync with live playlist edits so prev/next
+  // reflect the current track order. If the currently playing track is
+  // removed, syncQueue will pause playback.
+  const trackUris = useMemo(() => tracks.map((t) => t.uri), [tracks]);
+  useEffect(() => {
+    syncQueue(trackUris);
+  }, [trackUris, syncQueue]);
 
   // Track latest track count and cancel/delete state via ref so the unmount
   // cleanup sees fresh values without re-subscribing the effect on every render.

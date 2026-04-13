@@ -77,6 +77,32 @@ export default function PlayerBar() {
     setHoverValue(pct * duration);
   }
 
+  function handleBarKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (duration <= 0) return;
+    const SMALL_STEP_MS = 5_000;
+    const LARGE_STEP_MS = 10_000;
+    const step = e.shiftKey ? LARGE_STEP_MS : SMALL_STEP_MS;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        seek(position + step);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        seek(position - step);
+        break;
+      case 'Home':
+        e.preventDefault();
+        seek(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        seek(duration);
+        break;
+    }
+  }
+
   if (!isReady) return null;
 
   return (
@@ -157,7 +183,9 @@ export default function PlayerBar() {
               onMouseDown={handleBarMouseDown}
               onMouseMove={handleBarMouseMove}
               onMouseLeave={() => setHoverValue(null)}
-              className="group relative h-1 flex-1 cursor-pointer rounded-full bg-[#4d4d4d]"
+              onKeyDown={handleBarKeyDown}
+              tabIndex={0}
+              className="group relative h-1 flex-1 cursor-pointer rounded-full bg-[#4d4d4d] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1db954]"
               role="slider"
               aria-label="Seek"
               aria-valuemin={0}
