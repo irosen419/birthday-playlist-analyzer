@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePlayer } from '../../context/PlayerContext';
 
 const SCROLL_THRESHOLD = 100;
 
@@ -17,6 +18,7 @@ export default function ScrollFab() {
   const [visible, setVisible] = useState(false);
   const [direction, setDirection] = useState<'down' | 'up'>('down');
   const [rightOffset, setRightOffset] = useState<number | null>(null);
+  const { isReady: isPlayerVisible } = usePlayer();
 
   const updateState = useCallback(() => {
     setVisible(isPageScrollable());
@@ -66,7 +68,7 @@ export default function ScrollFab() {
           type="button"
           onClick={handleClick}
           style={{ right: rightOffset + 8 }}
-          className="fixed bottom-20 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#1DB954] shadow-lg transition-all duration-200 hover:scale-110 hover:bg-[#1ed760] active:scale-95"
+          className={`fixed ${isPlayerVisible ? 'bottom-32' : 'bottom-6'} z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#1DB954] shadow-lg transition-all duration-200 hover:scale-110 hover:bg-[#1ed760] active:scale-95`}
           aria-label={direction === 'up' ? 'Scroll to top' : 'Scroll to bottom'}
         >
           <svg
