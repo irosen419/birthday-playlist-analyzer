@@ -28,7 +28,8 @@ export default function SearchBar({ onAddTrack }: SearchBarProps) {
       try {
         const tracks = await searchTracks(query);
         setResults(tracks);
-      } catch {
+      } catch (err) {
+        console.error('Track search failed', err);
         setResults([]);
       } finally {
         setSearching(false);

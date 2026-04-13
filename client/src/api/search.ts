@@ -11,7 +11,7 @@ export async function searchTracks(
     params: { q: query, limit },
   });
 
-  return data.map((raw: Record<string, unknown>) => ({
+  return data.tracks.map((raw: Record<string, unknown>) => ({
     id: raw.id as string,
     name: raw.name as string,
     artists: raw.artists as { id: string; name: string }[],
