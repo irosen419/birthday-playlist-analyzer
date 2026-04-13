@@ -3,6 +3,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { DraggableProvided } from '@hello-pangea/dnd';
 import type { PlaylistTrack } from '../../types';
 import MoveTrackModal from './MoveTrackModal';
+import { usePlayer } from '../../context/PlayerContext';
 
 interface TrackItemProps {
   track: PlaylistTrack;
@@ -42,6 +43,10 @@ export default function TrackItem({
   onMove,
 }: TrackItemProps) {
   const albumArt = track.album.images[0]?.url;
+  const { currentTrack, isPaused } = usePlayer();
+  const isCurrent = currentTrack?.uri === track.uri;
+  const isPlaying = isCurrent && !isPaused;
+  const nameClass = isCurrent ? 'text-[#1db954]' : 'text-white';
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [popoverPlacement, setPopoverPlacement] = useState<'bottom' | 'top'>(
     'bottom'
@@ -163,9 +168,19 @@ export default function TrackItem({
         &#8645;
       </div>
 
-      {/* Position number */}
-      <span className="w-8 text-center text-sm tabular-nums text-[#6a6a6a]">
-        {track.position + 1}
+      {/* Position number / now-playing indicator */}
+      <span className="flex w-8 items-center justify-center text-sm tabular-nums text-[#6a6a6a]">
+        {isPlaying ? (
+          <span className="equalizer" aria-label="Playing">
+            <span />
+            <span />
+            <span />
+          </span>
+        ) : isCurrent ? (
+          <span className="text-[#1db954]">❚❚</span>
+        ) : (
+          track.position + 1
+        )}
       </span>
 
       {/* Clickable area: album art + track info + play button */}
@@ -190,7 +205,7 @@ export default function TrackItem({
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{track.name}</p>
+            <p className={`truncate text-sm font-medium ${nameClass}`}>{track.name}</p>
             <p className="truncate text-xs text-[#b3b3b3]">
               {track.artists.map((a) => a.name).join(', ')}
             </p>
@@ -212,7 +227,7 @@ export default function TrackItem({
           )}
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">{track.name}</p>
+            <p className={`truncate text-sm font-medium ${nameClass}`}>{track.name}</p>
             <p className="truncate text-xs text-[#b3b3b3]">
               {track.artists.map((a) => a.name).join(', ')}
             </p>

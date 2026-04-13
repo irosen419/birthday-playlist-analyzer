@@ -1,8 +1,107 @@
-import { usePlayer } from '../../context/PlayerContext';
+import { useEffect, useRef, useState } from 'react';
+import { usePlayer, usePlayerProgress } from '../../context/PlayerContext';
+
+function formatTime(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '0:00';
+  const total = Math.floor(ms / 1000);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
 export default function PlayerBar() {
-  const { isReady, isPaused, currentTrack, togglePlayPause, next, previous } =
-    usePlayer();
+  const {
+    isReady,
+    isPaused,
+    currentTrack,
+    togglePlayPause,
+    next,
+    previous,
+    seek,
+  } = usePlayer();
+  const { position, duration } = usePlayerProgress();
+
+  const [dragValue, setDragValue] = useState<number | null>(null);
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+
+  const displayPosition = dragValue ?? position;
+  const progressPct = duration > 0 ? Math.min(100, (displayPosition / duration) * 100) : 0;
+  const hoverPct =
+    hoverValue != null && duration > 0
+      ? Math.min(100, (hoverValue / duration) * 100)
+      : null;
+  const previewPct =
+    hoverPct != null && hoverPct > progressPct ? hoverPct - progressPct : 0;
+
+  useEffect(() => {
+    function handleMove(e: MouseEvent) {
+      if (!isDraggingRef.current || !barRef.current || duration <= 0) return;
+      const rect = barRef.current.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      setDragValue(pct * duration);
+    }
+    function handleUp() {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setDragValue((current) => {
+        if (current != null) seek(current);
+        return null;
+      });
+    }
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [duration, seek]);
+
+  function pctFromEvent(clientX: number): number | null {
+    if (!barRef.current || duration <= 0) return null;
+    const rect = barRef.current.getBoundingClientRect();
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+
+  function handleBarMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    const pct = pctFromEvent(e.clientX);
+    if (pct == null) return;
+    isDraggingRef.current = true;
+    setDragValue(pct * duration);
+  }
+
+  function handleBarMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const pct = pctFromEvent(e.clientX);
+    if (pct == null) return;
+    setHoverValue(pct * duration);
+  }
+
+  function handleBarKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (duration <= 0) return;
+    const SMALL_STEP_MS = 5_000;
+    const LARGE_STEP_MS = 10_000;
+    const step = e.shiftKey ? LARGE_STEP_MS : SMALL_STEP_MS;
+
+    switch (e.key) {
+      case 'ArrowRight':
+        e.preventDefault();
+        seek(position + step);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        seek(position - step);
+        break;
+      case 'Home':
+        e.preventDefault();
+        seek(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        seek(duration);
+        break;
+    }
+  }
 
   if (!isReady) return null;
 
@@ -34,8 +133,9 @@ export default function PlayerBar() {
           )}
         </div>
 
-        {/* Controls */}
-        <div className="flex shrink-0 items-center justify-center gap-4">
+        {/* Controls + progress */}
+        <div className="flex shrink-0 flex-col items-stretch justify-center gap-1">
+        <div className="flex items-center justify-center gap-4">
           <button
             onClick={previous}
             className="hidden cursor-pointer border-none bg-transparent p-2 text-[#b3b3b3] transition-colors hover:text-white md:block"
@@ -71,6 +171,54 @@ export default function PlayerBar() {
               <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.107A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.149V14.3a.7.7 0 0 0 .7.7h.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-.6z" />
             </svg>
           </button>
+        </div>
+
+          {/* Progress */}
+          <div className="flex items-center gap-2">
+            <span className="w-10 text-right text-[11px] tabular-nums text-[#b3b3b3]">
+              {formatTime(displayPosition)}
+            </span>
+            <div
+              ref={barRef}
+              onMouseDown={handleBarMouseDown}
+              onMouseMove={handleBarMouseMove}
+              onMouseLeave={() => setHoverValue(null)}
+              onKeyDown={handleBarKeyDown}
+              tabIndex={0}
+              className="group relative h-1 flex-1 cursor-pointer rounded-full bg-[#4d4d4d] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1db954]"
+              role="slider"
+              aria-label="Seek"
+              aria-valuemin={0}
+              aria-valuemax={duration}
+              aria-valuenow={Math.floor(displayPosition)}
+            >
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-white group-hover:bg-[#1db954]"
+                style={{ width: `${progressPct}%` }}
+              />
+              {previewPct > 0 && (
+                <div
+                  className="absolute inset-y-0 rounded-full bg-white/40"
+                  style={{ left: `${progressPct}%`, width: `${previewPct}%` }}
+                />
+              )}
+              <div
+                className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 transition-opacity group-hover:opacity-100"
+                style={{ left: `${progressPct}%` }}
+              />
+              {hoverPct != null && hoverValue != null && (
+                <div
+                  className="pointer-events-none absolute bottom-full mb-2 -translate-x-1/2 rounded bg-[#282828] px-2 py-1 text-[11px] tabular-nums text-white shadow-lg"
+                  style={{ left: `${hoverPct}%` }}
+                >
+                  {formatTime(hoverValue)}
+                </div>
+              )}
+            </div>
+            <span className="w-10 text-[11px] tabular-nums text-[#b3b3b3]">
+              {formatTime(duration)}
+            </span>
+          </div>
         </div>
 
         {/* Status */}
