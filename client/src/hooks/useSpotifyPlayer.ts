@@ -20,6 +20,7 @@ export function useSpotifyPlayer() {
   const queueRef = useRef<string[]>([]);
   const currentUriRef = useRef<string | null>(null);
   const positionRef = useRef(0);
+  const nextRef = useRef<() => void>(() => {});
 
   const RESTART_THRESHOLD_MS = 1000;
 
@@ -70,6 +71,15 @@ export function useSpotifyPlayer() {
             albumArt: track.album.images[0]?.url || '',
             uri: track.uri,
           });
+          // Spotify SDK signals natural end-of-track by emitting a state with
+          // position: 0, paused: true, and the same track still in current_track.
+          // When the ended track is the last reference we have, advance the queue.
+          const endedNaturally =
+            state.paused &&
+            state.position === 0 &&
+            !pausedRef.current &&
+            positionRef.current > 0;
+
           setPaused(state.paused);
           pausedRef.current = state.paused;
           setDuration(state.duration);
@@ -79,6 +89,8 @@ export function useSpotifyPlayer() {
             position: state.position,
             timestamp: Date.now(),
           };
+
+          if (endedNaturally) nextRef.current();
         });
 
         const errorEvents = [
@@ -176,6 +188,12 @@ export function useSpotifyPlayer() {
       console.error('Next failed:', err);
     }
   }, [deviceId]);
+
+  useEffect(() => {
+    nextRef.current = () => {
+      void next();
+    };
+  }, [next]);
 
   const seek = useCallback(async (ms: number) => {
     const clamped = Math.max(0, Math.min(ms, duration || ms));
