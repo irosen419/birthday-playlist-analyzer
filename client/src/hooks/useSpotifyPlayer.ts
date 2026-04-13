@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PlayerTrack } from '../types';
 import { getToken, play } from '../api/player';
 
-const PLAYER_NAME = 'Birthday Playlist Analyzer';
+const PLAYER_NAME = 'EraPlay';
 const SDK_LOAD_TIMEOUT_MS = 10_000;
 
 export function useSpotifyPlayer() {

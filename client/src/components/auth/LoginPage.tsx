@@ -17,16 +17,15 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#121212] px-4">
       <div className="w-full max-w-md rounded-xl bg-[#181818] p-10 text-center">
-        <div className="mb-6 text-5xl">🎉</div>
+        <div className="mb-6 text-5xl">🎧</div>
 
         <h1 className="mb-4 text-3xl font-bold text-white">
-          Birthday Playlist Analyzer
+          EraPlay
         </h1>
 
         <p className="mb-8 text-[#b3b3b3]">
-          Discover your musical identity through the lens of your birthday. We
-          analyze your listening history to build the ultimate birthday party
-          playlist.
+          Build the perfect playlist for your generation. Curate tracks from
+          your birth year and publish straight to Spotify.
         </p>
 
         {errorMessage && (
