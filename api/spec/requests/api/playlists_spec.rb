@@ -119,13 +119,11 @@ RSpec.describe "Api::Playlists", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
-    it "defaults a blank name to the next 'Playlist N' for the user" do
-      create(:playlist, user: user, name: "Playlist 3")
-
+    it "defaults a blank name to 'New Playlist'" do
       post "/api/playlists", params: { name: "" }
 
       expect(response).to have_http_status(:created)
-      expect(response.parsed_body["name"]).to eq("Playlist 4")
+      expect(response.parsed_body["name"]).to eq("New Playlist")
     end
 
     it "accepts generation config params" do

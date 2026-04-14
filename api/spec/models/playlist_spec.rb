@@ -12,32 +12,11 @@ RSpec.describe Playlist, type: :model do
   end
 
   describe 'default name' do
-    it 'assigns "Playlist 1" for a user\'s first playlist when name is blank' do
+    it 'assigns "New Playlist" when name is blank' do
       user = create(:user)
       playlist = user.playlists.create!(name: '')
 
-      expect(playlist.name).to eq('Playlist 1')
-    end
-
-    it 'increments per user, ignoring other users' do
-      user = create(:user)
-      other = create(:user)
-      other.playlists.create!(name: '')
-      user.playlists.create!(name: '')
-
-      playlist = user.playlists.create!(name: '')
-
-      expect(playlist.name).to eq('Playlist 2')
-    end
-
-    it 'picks the next number after the highest existing "Playlist N" name' do
-      user = create(:user)
-      user.playlists.create!(name: 'Playlist 5')
-      user.playlists.create!(name: 'My Mix')
-
-      playlist = user.playlists.create!(name: '')
-
-      expect(playlist.name).to eq('Playlist 6')
+      expect(playlist.name).to eq('New Playlist')
     end
 
     it 'leaves explicit names untouched' do

@@ -31,13 +31,7 @@ class Playlist < ApplicationRecord
   private
 
   def assign_default_name
-    return if name.present? || user.nil?
-
-    highest = user.playlists
-                  .pluck(:name)
-                  .filter_map { |n| n[/\APlaylist (\d+)\z/, 1]&.to_i }
-                  .max || 0
-    self.name = "Playlist #{highest + 1}"
+    self.name = "New Playlist" if name.blank? && user.present?
   end
 
   def ratios_must_sum_to_one
