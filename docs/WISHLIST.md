@@ -22,9 +22,6 @@ For this to work well, Nostalgic Artists need to live on a User and Playlist lev
 
 ## Bugs
 
-### Persist Spotify artist IDs on tracks and nostalgic artists
-**⚠️ High leverage — recommended as a prerequisite for most future artist-related work.** Today, `tracks.artist_names` is a jsonb array of strings and `nostalgic_artists` stores only `name` + `era`. No stable artist identifier is persisted anywhere, which forces every cross-artist operation (cap enforcement, dedup, "more from this artist", Claude-API era generation, unfollow-on-delete, etc.) to do fuzzy name matching — with real collision risk for common names ("Nirvana", "Genesis", "Eagles"). See `docs/ARTIST-ID-MIGRATION.md` for the full plan, scope, and backfill strategy. Blocks clean implementation of the Era-based Claude API feature above.
-
 ### Unfollow Spotify playlist on delete
 When a user deletes a playlist that has been published to Spotify, we currently only delete the local DB record — the Spotify playlist is orphaned in their account. Consider calling `DELETE /v1/playlists/{id}/followers` (Spotify's "unfollow" endpoint, which is how owners delete their own playlists) as part of destroy. Should probably be opt-in via an extra confirmation (e.g., "Also remove from Spotify?") rather than automatic.
 

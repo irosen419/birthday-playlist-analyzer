@@ -130,8 +130,13 @@ export async function updatePlaylist(
   return deserializePlaylist(data);
 }
 
-export async function deletePlaylist(id: number): Promise<void> {
-  await apiClient.delete(`/api/playlists/${id}`);
+export async function deletePlaylist(
+  id: number,
+  options: { removeFromSpotify?: boolean } = {}
+): Promise<void> {
+  await apiClient.delete(`/api/playlists/${id}`, {
+    params: options.removeFromSpotify ? { remove_from_spotify: true } : undefined,
+  });
 }
 
 export async function generatePlaylist(

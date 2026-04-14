@@ -294,6 +294,26 @@ RSpec.describe SpotifyApiClient do
     end
   end
 
+  describe "#unfollow_playlist" do
+    it "sends DELETE to the playlist followers endpoint" do
+      stub = stub_request(:delete, "#{base_url}/playlists/pl_abc/followers")
+        .with(headers: auth_header)
+        .to_return(status: 200, body: "")
+
+      client.unfollow_playlist(playlist_id: "pl_abc")
+
+      expect(stub).to have_been_requested.once
+    end
+
+    it "raises SpotifyApiError when Spotify returns a non-success status" do
+      stub_request(:delete, "#{base_url}/playlists/pl_abc/followers")
+        .to_return(status: 403, body: { error: { message: "Forbidden" } }.to_json)
+
+      expect { client.unfollow_playlist(playlist_id: "pl_abc") }
+        .to raise_error(SpotifyApiError, /Forbidden/)
+    end
+  end
+
   describe "proactive token refresh" do
     it "refreshes token before request when token is expired" do
       expired_user = create(:user, token_expires_at: 1.minute.ago)

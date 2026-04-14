@@ -307,6 +307,60 @@ RSpec.describe "Api::Playlists", type: :request do
 
       expect(response).to have_http_status(:no_content)
     end
+
+    it "does not call Spotify when remove_from_spotify is false" do
+      playlist = create(:playlist, user: user, spotify_playlist_id: "pl_abc")
+      spotify_client = instance_double(SpotifyApiClient)
+      allow(SpotifyApiClient).to receive(:new).and_return(spotify_client)
+
+      delete "/api/playlists/#{playlist.id}", params: { remove_from_spotify: false }
+
+      expect(spotify_client).not_to have_received(:unfollow_playlist) if spotify_client.respond_to?(:unfollow_playlist)
+      expect(response).to have_http_status(:no_content)
+      expect(Playlist.exists?(playlist.id)).to be(false)
+    end
+
+    context "when remove_from_spotify is true" do
+      it "unfollows the Spotify playlist then destroys the local record" do
+        playlist = create(:playlist, user: user, spotify_playlist_id: "pl_abc")
+        spotify_client = instance_double(SpotifyApiClient)
+        allow(SpotifyApiClient).to receive(:new).and_return(spotify_client)
+        allow(spotify_client).to receive(:unfollow_playlist).with(playlist_id: "pl_abc")
+
+        expect {
+          delete "/api/playlists/#{playlist.id}", params: { remove_from_spotify: true }
+        }.to change(user.playlists, :count).by(-1)
+
+        expect(spotify_client).to have_received(:unfollow_playlist).with(playlist_id: "pl_abc")
+        expect(response).to have_http_status(:no_content)
+      end
+
+      it "rolls back and returns 422 when the Spotify unfollow call fails" do
+        playlist = create(:playlist, user: user, spotify_playlist_id: "pl_abc")
+        spotify_client = instance_double(SpotifyApiClient)
+        allow(SpotifyApiClient).to receive(:new).and_return(spotify_client)
+        allow(spotify_client).to receive(:unfollow_playlist)
+          .and_raise(SpotifyApiError, "Spotify API error (500): boom")
+
+        expect {
+          delete "/api/playlists/#{playlist.id}", params: { remove_from_spotify: true }
+        }.not_to change(user.playlists, :count)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body["error"]).to match(/boom/i)
+      end
+
+      it "destroys without calling Spotify when the playlist has no spotify_playlist_id" do
+        playlist = create(:playlist, user: user, spotify_playlist_id: nil)
+        allow(SpotifyApiClient).to receive(:new).and_call_original
+
+        delete "/api/playlists/#{playlist.id}", params: { remove_from_spotify: true }
+
+        expect(SpotifyApiClient).not_to have_received(:new)
+        expect(response).to have_http_status(:no_content)
+        expect(Playlist.exists?(playlist.id)).to be(false)
+      end
+    end
   end
 
   describe "POST /api/playlists/:id/generate" do

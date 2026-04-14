@@ -13,6 +13,7 @@ import type { GenerationConfig } from '../../hooks/useAutoSave';
 import { areRatiosValid } from '../../lib/ratioValidation';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
+import DeletePlaylistDialog from './DeletePlaylistDialog';
 import PlaylistHeader from './PlaylistHeader';
 import PlaylistTrackList from './PlaylistTrackList';
 import RegenerateButton from './RegenerateButton';
@@ -163,25 +164,31 @@ export default function PlaylistEditor() {
   }, [playlistId]);
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const removePlaylist = useCallback(
-    async ({ surfaceErrors }: { surfaceErrors: boolean }) => {
+    async ({
+      surfaceErrors,
+      removeFromSpotify = false,
+    }: { surfaceErrors: boolean; removeFromSpotify?: boolean }) => {
       if (!playlistId) return;
       deletedRef.current = true;
       setDeleteError(null);
       try {
-        await deletePlaylist(playlistId);
+        await deletePlaylist(playlistId, { removeFromSpotify });
       } catch (err) {
         if (surfaceErrors) {
           setDeleteError(
             err instanceof Error ? err.message : 'Failed to delete playlist.'
           );
           deletedRef.current = false;
-          return;
+          return false;
         }
       }
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
       navigate('/playlists');
+      return true;
     },
     [playlistId, navigate, queryClient]
   );
@@ -191,8 +198,21 @@ export default function PlaylistEditor() {
     [removePlaylist]
   );
 
-  const handleDelete = useCallback(
-    () => removePlaylist({ surfaceErrors: true }),
+  const handleDelete = useCallback(() => {
+    setDeleteError(null);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(
+    async ({ removeFromSpotify }: { removeFromSpotify: boolean }) => {
+      setIsDeleting(true);
+      const succeeded = await removePlaylist({
+        surfaceErrors: true,
+        removeFromSpotify,
+      });
+      setIsDeleting(false);
+      if (succeeded) setDeleteDialogOpen(false);
+    },
     [removePlaylist]
   );
 
@@ -366,13 +386,7 @@ export default function PlaylistEditor() {
           onShuffle={handleShuffle}
           onCancel={handleCancel}
           onDelete={handleDelete}
-          isPublished={!!playlist?.spotifyPlaylistId}
         />
-        {deleteError && (
-          <p className="mt-2 w-full text-sm text-red-400" role="alert">
-            {deleteError}
-          </p>
-        )}
       </div>
 
       <PlaylistConfig
@@ -398,6 +412,20 @@ export default function PlaylistEditor() {
       />
 
       <ScrollFab />
+
+      <DeletePlaylistDialog
+        isOpen={deleteDialogOpen}
+        playlistName={name || playlist?.name || 'this playlist'}
+        isPublished={!!playlist?.spotifyPlaylistId}
+        isDeleting={isDeleting}
+        errorMessage={deleteError}
+        onCancel={() => {
+          if (isDeleting) return;
+          setDeleteDialogOpen(false);
+          setDeleteError(null);
+        }}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

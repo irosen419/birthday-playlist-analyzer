@@ -60,6 +60,10 @@ class SpotifyApiClient
     get("/audio-features", ids: track_ids.join(","))
   end
 
+  def unfollow_playlist(playlist_id:)
+    delete("/playlists/#{playlist_id}/followers")
+  end
+
   private
 
   def get(path, **params)
@@ -72,6 +76,10 @@ class SpotifyApiClient
 
   def put(path, body)
     request(:put, path, body: body.to_json)
+  end
+
+  def delete(path)
+    request(:delete, path)
   end
 
   def request(method, path, retried: false, **options)
@@ -93,7 +101,7 @@ class SpotifyApiClient
   def handle_response(response, method, path, retried, **options)
     case response.status
     when 200..299
-      response.status == 204 ? nil : JSON.parse(response.body)
+      response.body.to_s.strip.empty? ? nil : JSON.parse(response.body)
     when 401
       raise SpotifyApiError, "Token refresh failed" if retried
       refresh_user_token!
