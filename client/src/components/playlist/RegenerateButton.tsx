@@ -11,7 +11,6 @@ interface RegenerateButtonProps {
   onShuffle: () => void;
   onCancel?: () => void;
   onDelete?: () => void;
-  isPublished?: boolean;
 }
 
 export default function RegenerateButton({
@@ -25,7 +24,6 @@ export default function RegenerateButton({
   onShuffle,
   onCancel,
   onDelete,
-  isPublished = false,
 }: RegenerateButtonProps) {
   const isEmpty = tracks.length === 0;
   const allLocked = tracks.length > 0 && lockedTrackIds.size === tracks.length;
@@ -51,13 +49,7 @@ export default function RegenerateButton({
   }
 
   function handleDeleteClick() {
-    if (!onDelete) return;
-    const message = isPublished
-      ? 'This playlist is published to Spotify. Delete the local copy? (The Spotify playlist will remain in your account)'
-      : 'Delete this playlist?';
-    if (confirm(message)) {
-      onDelete();
-    }
+    onDelete?.();
   }
 
   return (

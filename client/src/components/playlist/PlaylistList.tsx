@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getPlaylists, createPlaylist, deletePlaylist } from '../../api/playlists';
 import LoadingSpinner from '../common/LoadingSpinner';
+import DeletePlaylistDialog from './DeletePlaylistDialog';
+import type { Playlist } from '../../types';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -28,10 +31,21 @@ export default function PlaylistList() {
     },
   });
 
+  const [pendingDelete, setPendingDelete] = useState<Playlist | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => deletePlaylist(id),
+    mutationFn: (params: { id: number; removeFromSpotify: boolean }) =>
+      deletePlaylist(params.id, { removeFromSpotify: params.removeFromSpotify }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      setPendingDelete(null);
+      setDeleteError(null);
+    },
+    onError: (err) => {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to delete playlist.'
+      );
     },
   });
 
@@ -88,24 +102,41 @@ export default function PlaylistList() {
                 </p>
               </button>
 
-              {!playlist.spotifyPlaylistId && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete "${playlist.name}"?`)) {
-                      deleteMutation.mutate(playlist.id);
-                    }
-                  }}
-                  className="absolute top-3 right-3 cursor-pointer rounded-full border-none bg-transparent p-1.5 text-[#6a6a6a] transition-colors hover:bg-[#404040] hover:text-red-400"
-                  title="Delete playlist"
-                >
-                  ✕
-                </button>
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteError(null);
+                  setPendingDelete(playlist);
+                }}
+                className="absolute top-3 right-3 cursor-pointer rounded-full border-none bg-transparent p-1.5 text-[#6a6a6a] transition-colors hover:bg-[#404040] hover:text-red-400"
+                title="Delete playlist"
+              >
+                ✕
+              </button>
             </div>
           ))}
         </div>
       )}
+
+      <DeletePlaylistDialog
+        isOpen={!!pendingDelete}
+        playlistName={pendingDelete?.name ?? ''}
+        isPublished={!!pendingDelete?.spotifyPlaylistId}
+        isDeleting={deleteMutation.isPending}
+        errorMessage={deleteError}
+        onCancel={() => {
+          if (deleteMutation.isPending) return;
+          setPendingDelete(null);
+          setDeleteError(null);
+        }}
+        onConfirm={({ removeFromSpotify }) => {
+          if (!pendingDelete) return;
+          deleteMutation.mutate({
+            id: pendingDelete.id,
+            removeFromSpotify,
+          });
+        }}
+      />
     </div>
   );
 }

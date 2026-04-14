@@ -54,6 +54,15 @@ module Api
     end
 
     def destroy
+      if remove_from_spotify_requested? && @playlist.spotify_playlist_id.present?
+        begin
+          spotify_client.unfollow_playlist(playlist_id: @playlist.spotify_playlist_id)
+        rescue SpotifyApiError => e
+          return render json: { error: "Failed to remove playlist from Spotify: #{e.message}" },
+                        status: :unprocessable_entity
+        end
+      end
+
       @playlist.destroy!
       head :no_content
     end
@@ -121,6 +130,10 @@ module Api
         primary = (pt.track.artist_names || []).first || {}
         { "artists" => [{ "id" => primary["id"], "name" => primary["name"] }] }
       end
+    end
+
+    def remove_from_spotify_requested?
+      ActiveModel::Type::Boolean.new.cast(params[:remove_from_spotify])
     end
 
     def set_playlist
