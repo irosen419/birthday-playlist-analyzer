@@ -10,6 +10,7 @@ RSpec.describe NostalgicArtist, type: :model do
 
     it { is_expected.to validate_presence_of(:name) }
     it { is_expected.to validate_presence_of(:era) }
+    it { is_expected.to validate_presence_of(:spotify_artist_id) }
 
     it do
       is_expected.to validate_inclusion_of(:era)

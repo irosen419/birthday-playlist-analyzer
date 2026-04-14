@@ -388,8 +388,8 @@ RSpec.describe PlaylistGeneratorService do
 
   describe "#get_era_hits" do
     before do
-      user.nostalgic_artists.create!(name: "NSYNC", era: "formative")
-      user.nostalgic_artists.create!(name: "Britney Spears", era: "formative")
+      user.nostalgic_artists.create!(name: "NSYNC", era: "formative", spotify_artist_id: "nsync_id")
+      user.nostalgic_artists.create!(name: "Britney Spears", era: "formative", spotify_artist_id: "britney_id")
 
       allow(spotify_client).to receive(:search).and_return({
         "tracks" => {
@@ -425,11 +425,7 @@ RSpec.describe PlaylistGeneratorService do
     it "uses nostalgic artists for formative era" do
       generator.get_era_hits(1991, 10, Set.new)
 
-      expect(spotify_client).to have_received(:search).with(
-        query: "NSYNC",
-        types: ["artist"],
-        limit: 5
-      )
+      expect(spotify_client).to have_received(:artist_top_tracks).with(artist_id: "nsync_id")
     end
 
     it "excludes already-seen track IDs" do
@@ -694,7 +690,7 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "contributes tracks from nostalgic artists tagged high_school" do
-      user.nostalgic_artists.create!(name: "Blink-182", era: "high_school")
+      user.nostalgic_artists.create!(name: "Blink-182", era: "high_school", spotify_artist_id: "blink_id")
       stub_search_returning_artist("Blink-182", "blink_id")
 
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "blink_id").and_return({
@@ -711,7 +707,7 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "contributes tracks from nostalgic artists tagged college" do
-      user.nostalgic_artists.create!(name: "The Strokes", era: "college")
+      user.nostalgic_artists.create!(name: "The Strokes", era: "college", spotify_artist_id: "strokes_id")
       stub_search_returning_artist("The Strokes", "strokes_id")
 
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "strokes_id").and_return({
@@ -726,8 +722,8 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "pools the same artist added under multiple eras only once" do
-      user.nostalgic_artists.create!(name: "Weezer", era: "high_school")
-      user.nostalgic_artists.create!(name: "Weezer", era: "college")
+      user.nostalgic_artists.create!(name: "Weezer", era: "high_school", spotify_artist_id: "weezer_id")
+      user.nostalgic_artists.create!(name: "Weezer", era: "college", spotify_artist_id: "weezer_id")
       stub_search_returning_artist("Weezer", "weezer_id")
 
       top_tracks_call_count = 0
@@ -746,7 +742,7 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "tags tracks from a high_school-only nostalgic artist with era 'high_school'" do
-      user.nostalgic_artists.create!(name: "Blink-182", era: "high_school")
+      user.nostalgic_artists.create!(name: "Blink-182", era: "high_school", spotify_artist_id: "blink_id")
       stub_search_returning_artist("Blink-182", "blink_id")
 
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "blink_id").and_return({
@@ -764,8 +760,8 @@ RSpec.describe PlaylistGeneratorService do
 
     it "tags tracks from an artist tagged under multiple eras with a comma-joined label in canonical order" do
       # Insert out of canonical order to prove sorting isn't insertion-order based.
-      user.nostalgic_artists.create!(name: "Weezer", era: "college")
-      user.nostalgic_artists.create!(name: "Weezer", era: "high_school")
+      user.nostalgic_artists.create!(name: "Weezer", era: "college", spotify_artist_id: "weezer_id")
+      user.nostalgic_artists.create!(name: "Weezer", era: "high_school", spotify_artist_id: "weezer_id")
       stub_search_returning_artist("Weezer", "weezer_id")
 
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "weezer_id").and_return({
@@ -782,7 +778,7 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "tags tracks from a formative-only nostalgic artist with era 'formative'" do
-      user.nostalgic_artists.create!(name: "NSYNC", era: "formative")
+      user.nostalgic_artists.create!(name: "NSYNC", era: "formative", spotify_artist_id: "nsync_id")
       stub_search_returning_artist("NSYNC", "nsync_id")
 
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "nsync_id").and_return({
@@ -802,7 +798,7 @@ RSpec.describe PlaylistGeneratorService do
       # 10 nostalgic artists, each with 4 high-popularity top tracks. Without a cap,
       # nostalgic would fill all 20 era_hits slots and short-circuit the genre-era search.
       nostalgic_names = (1..10).map { |i| "Nostalgic #{i}" }
-      nostalgic_names.each { |name| user.nostalgic_artists.create!(name: name, era: "formative") }
+      nostalgic_names.each { |name| user.nostalgic_artists.create!(name: name, era: "formative", spotify_artist_id: "nostalgic_id_#{name.parameterize(separator: '_')}") }
 
       artist_lookup = nostalgic_names.each_with_object({}) do |name, acc|
         acc[name] = "nostalgic_id_#{name.parameterize(separator: '_')}"
@@ -888,7 +884,7 @@ RSpec.describe PlaylistGeneratorService do
         }
       })
 
-      user.nostalgic_artists.create!(name: hog_name, era: "formative")
+      user.nostalgic_artists.create!(name: hog_name, era: "formative", spotify_artist_id: hog_id)
       allow(spotify_client).to receive(:search).with(query: hog_name, types: ["artist"], limit: 5).and_return({
         "artists" => { "items" => [{ "id" => hog_id, "name" => hog_name }] },
         "tracks" => { "items" => [] }
@@ -1015,7 +1011,7 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "uses popularity >= 30 tracks when an artist has none at popularity >= 60" do
-      user.nostalgic_artists.create!(name: "MidPop", era: "formative")
+      user.nostalgic_artists.create!(name: "MidPop", era: "formative", spotify_artist_id: "midpop_id")
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "midpop_id").and_return({
         "tracks" => (1..6).map { |i|
           make_track.call(id: "mid_#{i}", name: "Mid #{i}", artist_id: "midpop_id", artist_name: "MidPop", popularity: 35)
@@ -1029,7 +1025,7 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "falls back to >= 0 popularity when an artist has only low-popularity tracks" do
-      user.nostalgic_artists.create!(name: "LowPop", era: "formative")
+      user.nostalgic_artists.create!(name: "LowPop", era: "formative", spotify_artist_id: "lowpop_id")
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "lowpop_id").and_return({
         "tracks" => (1..6).map { |i|
           make_track.call(id: "low_#{i}", name: "Low #{i}", artist_id: "lowpop_id", artist_name: "LowPop", popularity: 10)
@@ -1043,8 +1039,8 @@ RSpec.describe PlaylistGeneratorService do
     end
 
     it "applies the popularity fallback per-artist (doesn't lower floor for other artists)" do
-      user.nostalgic_artists.create!(name: "LowA", era: "formative")
-      user.nostalgic_artists.create!(name: "HighB", era: "formative")
+      user.nostalgic_artists.create!(name: "LowA", era: "formative", spotify_artist_id: "lowa_id")
+      user.nostalgic_artists.create!(name: "HighB", era: "formative", spotify_artist_id: "highb_id")
 
       allow(spotify_client).to receive(:artist_top_tracks).with(artist_id: "lowa_id").and_return({
         "tracks" => (1..6).map { |i|
