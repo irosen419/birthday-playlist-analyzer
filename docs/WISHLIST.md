@@ -28,6 +28,9 @@ For this to work well, Nostalgic Artists need to live on a User and Playlist lev
 ### Unfollow Spotify playlist on delete
 When a user deletes a playlist that has been published to Spotify, we currently only delete the local DB record — the Spotify playlist is orphaned in their account. Consider calling `DELETE /v1/playlists/{id}/followers` (Spotify's "unfollow" endpoint, which is how owners delete their own playlists) as part of destroy. Should probably be opt-in via an extra confirmation (e.g., "Also remove from Spotify?") rather than automatic.
 
+### Artist ID migration Phase B
+Follow-up to Phase A (the initial artist-ID migration PR). Adds `unverified_backfill:boolean` to `nostalgic_artists`, a rake task that resolves existing rows by fuzzy name search (`/search?type=artist&limit=1`), and a Settings UI section that surfaces unverified rows with artist image + "Looks right" / "Replace" actions. Once everything is verified, a final migration enforces `null: false` on `spotify_artist_id` and drops the old `[user_id, name, era]` unique index.
+
 ## UX polish
 
 _(empty)_

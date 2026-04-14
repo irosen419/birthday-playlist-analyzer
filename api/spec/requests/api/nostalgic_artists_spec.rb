@@ -44,6 +44,15 @@ RSpec.describe "Api::NostalgicArtists", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
+    it "persists spotify_artist_id when provided" do
+      post "/api/nostalgic_artists", params: {
+        name: "Nirvana", era: "high_school", spotify_artist_id: "6olE6TJLqED3rqDCT0FyPh"
+      }
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["spotify_artist_id"]).to eq("6olE6TJLqED3rqDCT0FyPh")
+    end
+
     it "returns errors for invalid era" do
       post "/api/nostalgic_artists", params: { name: "Test", era: "invalid" }
 

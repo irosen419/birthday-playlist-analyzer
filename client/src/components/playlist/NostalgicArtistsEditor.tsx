@@ -53,7 +53,7 @@ function EraGroup({
 }: {
   config: EraGroupConfig;
   artists: NostalgicArtist[];
-  onAdd: (name: string, era: Era) => void;
+  onAdd: (name: string, era: Era, spotifyArtistId?: string) => void;
   onDelete: (id: number) => void;
 }) {
   const [inputValue, setInputValue] = useState('');
@@ -94,7 +94,7 @@ function EraGroup({
   }
 
   function selectArtist(artist: SpotifyArtist) {
-    onAdd(artist.name, config.era);
+    onAdd(artist.name, config.era, artist.id);
     setInputValue('');
     setSuggestions([]);
     setShowSuggestions(false);
@@ -210,8 +210,8 @@ const NostalgicArtistsEditor = forwardRef<
     },
   });
 
-  function handleAdd(name: string, era: Era) {
-    addMutation.mutate({ name, era });
+  function handleAdd(name: string, era: Era, spotifyArtistId?: string) {
+    addMutation.mutate({ name, era, spotifyArtistId });
   }
 
   function handleDelete(id: number) {

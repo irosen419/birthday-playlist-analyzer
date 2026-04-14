@@ -115,11 +115,11 @@ module Api
     private
 
     # Shape existing playlist tracks into the minimal structure the generator
-    # needs to seed its per-artist cap counter (primary artist name only).
+    # needs to seed its per-artist cap counter.
     def existing_tracks_for_cap_seed
       @playlist.playlist_tracks.includes(:track).map do |pt|
-        primary_name = (pt.track.artist_names || []).first
-        { "artists" => [{ "name" => primary_name }] }
+        primary = (pt.track.artist_names || []).first || {}
+        { "artists" => [{ "id" => primary["id"], "name" => primary["name"] }] }
       end
     end
 
@@ -155,7 +155,7 @@ module Api
           "id" => track.spotify_id,
           "spotify_id" => track.spotify_id,
           "name" => track.name,
-          "artists" => (track.artist_names || []).map { |name| { "id" => "", "name" => name } },
+          "artists" => (track.artist_names || []).map { |a| { "id" => a["id"] || "", "name" => a["name"] } },
           "album" => {
             "name" => track.album_name,
             "images" => track.album_art_url.present? ? [{ "url" => track.album_art_url }] : []
@@ -215,7 +215,7 @@ module Api
       {
         id: data["id"],
         name: data["name"],
-        artists: (data["artists"] || []).map { |a| { name: a["name"] } },
+        artists: (data["artists"] || []).map { |a| { id: a["id"], name: a["name"] } },
         album: {
           name: data.dig("album", "name"),
           images: data.dig("album", "images") || []
@@ -251,7 +251,7 @@ module Api
       {
         id: data[:spotify_id],
         name: data[:name],
-        artists: data[:artists]&.map { |a| { name: a[:name] } },
+        artists: data[:artists]&.map { |a| { id: a[:id] || a["id"], name: a[:name] || a["name"] } },
         album: {
           name: data.dig(:album, :name),
           images: data.dig(:album, :images) || []

@@ -27,7 +27,7 @@ class Track < ApplicationRecord
     def extract_artist_names(artists)
       return [] if artists.blank?
 
-      artists.map { |a| a[:name] }
+      artists.map { |a| { "id" => a[:id] || a["id"], "name" => a[:name] || a["name"] } }
     end
 
     def extract_album_art_url(album)

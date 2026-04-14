@@ -31,6 +31,11 @@ class SpotifyApiClient
     get("/recommendations", **query)
   end
 
+  # Fetch metadata for multiple tracks in one call. Spotify allows up to 50 IDs.
+  def tracks_by_ids(ids:)
+    get("/tracks", ids: ids.first(50).join(","))
+  end
+
   def artist_top_tracks(artist_id:, market: "US")
     get("/artists/#{artist_id}/top-tracks", market: market)
   end

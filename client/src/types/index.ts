@@ -62,6 +62,8 @@ export interface NostalgicArtist {
   id: number;
   name: string;
   era: 'formative' | 'high_school' | 'college';
+  spotifyArtistId?: string;
+  spotify_artist_id?: string;
 }
 
 export interface GenreWeight {
