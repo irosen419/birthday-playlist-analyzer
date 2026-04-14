@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_04_14_171712) do
+ActiveRecord::Schema[8.0].define(version: 2026_04_14_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,9 +20,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_04_14_171712) do
     t.string "era", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "spotify_artist_id"
-    t.index ["user_id", "name", "era"], name: "index_nostalgic_artists_on_user_id_and_name_and_era", unique: true
-    t.index ["user_id", "spotify_artist_id", "era"], name: "idx_nostalgic_artists_on_user_spotify_id_era", unique: true, where: "(spotify_artist_id IS NOT NULL)"
+    t.string "spotify_artist_id", null: false
+    t.index ["user_id", "spotify_artist_id", "era"], name: "idx_nostalgic_artists_on_user_spotify_id_era", unique: true
     t.index ["user_id"], name: "index_nostalgic_artists_on_user_id"
   end
 

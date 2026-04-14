@@ -30,7 +30,9 @@ RSpec.describe "Api::NostalgicArtists", type: :request do
   describe "POST /api/nostalgic_artists" do
     it "creates a nostalgic artist" do
       expect {
-        post "/api/nostalgic_artists", params: { name: "Destiny's Child", era: "formative" }
+        post "/api/nostalgic_artists", params: {
+          name: "Destiny's Child", era: "formative", spotify_artist_id: "1Y8cdNmUJH7yBTd9yOvr5i"
+        }
       }.to change(user.nostalgic_artists, :count).by(1)
 
       expect(response).to have_http_status(:created)
@@ -39,7 +41,13 @@ RSpec.describe "Api::NostalgicArtists", type: :request do
     end
 
     it "returns errors for invalid params" do
-      post "/api/nostalgic_artists", params: { name: "", era: "formative" }
+      post "/api/nostalgic_artists", params: { name: "", era: "formative", spotify_artist_id: "abc" }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it "returns errors when spotify_artist_id is missing" do
+      post "/api/nostalgic_artists", params: { name: "No ID", era: "formative" }
 
       expect(response).to have_http_status(:unprocessable_entity)
     end
@@ -54,7 +62,7 @@ RSpec.describe "Api::NostalgicArtists", type: :request do
     end
 
     it "returns errors for invalid era" do
-      post "/api/nostalgic_artists", params: { name: "Test", era: "invalid" }
+      post "/api/nostalgic_artists", params: { name: "Test", era: "invalid", spotify_artist_id: "abc" }
 
       expect(response).to have_http_status(:unprocessable_entity)
     end
