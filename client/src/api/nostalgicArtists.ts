@@ -9,9 +9,14 @@ export async function getNostalgicArtists(): Promise<NostalgicArtist[]> {
 export async function createNostalgicArtist(params: {
   name: string;
   era: NostalgicArtist['era'];
+  spotifyArtistId?: string;
 }): Promise<NostalgicArtist> {
   const { data } = await apiClient.post('/api/nostalgic_artists', {
-    nostalgic_artist: params,
+    nostalgic_artist: {
+      name: params.name,
+      era: params.era,
+      spotify_artist_id: params.spotifyArtistId,
+    },
   });
   return data;
 }

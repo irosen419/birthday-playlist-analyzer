@@ -33,7 +33,7 @@ RSpec.describe Track, type: :model do
       expect(track).to be_persisted
       expect(track.spotify_id).to eq('spotify_track_123')
       expect(track.name).to eq('Bye Bye Bye')
-      expect(track.artist_names).to eq(['NSYNC'])
+      expect(track.artist_names).to eq([{ 'id' => 'artist1', 'name' => 'NSYNC' }])
       expect(track.album_name).to eq('No Strings Attached')
       expect(track.album_art_url).to eq('https://example.com/album.jpg')
       expect(track.duration_ms).to eq(200_000)
@@ -56,7 +56,10 @@ RSpec.describe Track, type: :model do
 
       track = Track.upsert_from_spotify(data)
 
-      expect(track.artist_names).to eq(['Artist One', 'Artist Two'])
+      expect(track.artist_names).to eq([
+        { 'id' => 'a1', 'name' => 'Artist One' },
+        { 'id' => 'a2', 'name' => 'Artist Two' }
+      ])
     end
 
     it 'handles missing album images gracefully' do

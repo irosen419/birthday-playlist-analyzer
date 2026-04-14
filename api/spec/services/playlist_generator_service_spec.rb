@@ -911,9 +911,11 @@ RSpec.describe PlaylistGeneratorService do
 
     it "seeds the cap counter from existing_tracks passed in on regenerate" do
       # Simulate playlist that already has 4 tracks by "Smash Mouth" (locked).
+      # Post-artist-ID migration, persisted tracks carry the Spotify artist ID,
+      # which is how the cap keys match between seed and candidate pools.
       existing = (1..4).map do |i|
         {
-          "artists" => [{ "name" => "Smash Mouth" }]
+          "artists" => [{ "id" => "smashmouth_id", "name" => "Smash Mouth" }]
         }
       end
 

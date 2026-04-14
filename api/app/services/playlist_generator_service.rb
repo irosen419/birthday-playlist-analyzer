@@ -208,13 +208,16 @@ class PlaylistGeneratorService
     counts
   end
 
-  # Primary artist key used for the global cap. Uses normalized primary artist NAME
-  # (not id) so that seeded DB tracks — which only persist artist names — use the
-  # same key as fresh Spotify API candidates.
+  # Primary artist key used for the global cap. Prefers the Spotify artist ID
+  # (stable, collision-proof). Falls back to a normalized name for rows that
+  # haven't been backfilled yet (Phase A still allows nil IDs).
   def primary_artist_key(track)
+    id = track.dig("artists", 0, "id") || track.dig(:artists, 0, :id)
+    return "id:#{id}" if id.present?
+
     name = track.dig("artists", 0, "name") || track.dig(:artists, 0, :name)
     return nil if name.blank?
-    name.to_s.downcase.strip
+    "name:#{name.to_s.downcase.strip}"
   end
 
   def apply_global_cap(tracks)
@@ -293,15 +296,17 @@ class PlaylistGeneratorService
     tracks
   end
 
-  # Pool nostalgic artists from ALL eras, deduped by normalized name (the model
-  # stores only names; there is no artist_spotify_id column to key on).
+  # Pool nostalgic artists from ALL eras, deduped by Spotify artist ID when
+  # present (collision-proof) and falling back to normalized name for rows that
+  # predate the artist-ID migration.
   # Returns an array of { record:, eras: [...] } so callers can see every era
   # an artist was tagged under (an artist may appear in multiple eras per user).
   def unique_nostalgic_artists
     grouped = {}
     @user.nostalgic_artists.each do |na|
-      key = na.name.to_s.downcase.strip
-      next if key.empty?
+      key = na.spotify_artist_id.presence&.then { |id| "id:#{id}" } ||
+            (na.name.to_s.downcase.strip.presence && "name:#{na.name.downcase.strip}")
+      next if key.nil?
 
       grouped[key] ||= { record: na, eras: [] }
       grouped[key][:eras] << na.era
@@ -322,10 +327,11 @@ class PlaylistGeneratorService
       nostalgic_artist = entry[:record]
       era_label = entry[:eras].join(",")
 
-      artist = resolve_nostalgic_artist(nostalgic_artist.name)
-      next unless artist
+      artist_id = nostalgic_artist.spotify_artist_id.presence ||
+                  resolve_nostalgic_artist(nostalgic_artist.name)&.dig("id")
+      next unless artist_id
 
-      top_tracks = (@client.artist_top_tracks(artist_id: artist["id"])["tracks"] || [])
+      top_tracks = (@client.artist_top_tracks(artist_id: artist_id)["tracks"] || [])
 
       per_artist_remaining = [NOSTALGIC_PER_ARTIST_TARGET, target_count - collected.length].min
       picks = pick_with_popularity_fallback(top_tracks, per_artist_remaining, seen_track_ids)
