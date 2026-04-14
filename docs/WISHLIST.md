@@ -25,13 +25,6 @@ For this to work well, Nostalgic Artists need to live on a User and Playlist lev
 ### Persist Spotify artist IDs on tracks and nostalgic artists
 **⚠️ High leverage — recommended as a prerequisite for most future artist-related work.** Today, `tracks.artist_names` is a jsonb array of strings and `nostalgic_artists` stores only `name` + `era`. No stable artist identifier is persisted anywhere, which forces every cross-artist operation (cap enforcement, dedup, "more from this artist", Claude-API era generation, unfollow-on-delete, etc.) to do fuzzy name matching — with real collision risk for common names ("Nirvana", "Genesis", "Eagles"). See `docs/ARTIST-ID-MIGRATION.md` for the full plan, scope, and backfill strategy. Blocks clean implementation of the Era-based Claude API feature above.
 
-### Nostalgic artists barely influence generation
-Rework how nostalgic artists feed into playlist generation. Current behavior (in `api/app/services/playlist_generator_service.rb`):
-- Only the **formative** era (ages 10–12) actually consults `user.nostalgic_artists`. Entries tagged `high_school` or `college` are silently ignored. All three eras should contribute.
-- The era groupings should be treated as a UX nicety for organizing the user's picks — not as a hard gate that decides whether the artist is used.
-- The `.first(2)` cap in `fetch_nostalgic_artist_tracks` only caps tracks picked from that function. Favorites/discovery buckets can independently add more tracks by the same artist (e.g., 3 Smash Mouth songs appeared in a generated playlist). There should be a global per-artist cap across all buckets.
-- Spotify's `popularity` field (0–100, global play counts with recency weighting) filters out lower-popularity nostalgic tracks via `MIN_POPULARITY = 60`. For nostalgic artists the user explicitly chose, this threshold may be too aggressive — consider lowering or removing it for nostalgic-artist picks specifically.
-
 ### Unfollow Spotify playlist on delete
 When a user deletes a playlist that has been published to Spotify, we currently only delete the local DB record — the Spotify playlist is orphaned in their account. Consider calling `DELETE /v1/playlists/{id}/followers` (Spotify's "unfollow" endpoint, which is how owners delete their own playlists) as part of destroy. Should probably be opt-in via an extra confirmation (e.g., "Also remove from Spotify?") rather than automatic.
 
