@@ -4,7 +4,7 @@ namespace :backfill do
     BATCH_SIZE = 50
     SLEEP_BETWEEN_BATCHES = 2
 
-    user = User.where.not(access_token: nil).order(:id).first
+    user = User.where.not(access_token_ciphertext: nil).order(:id).first
     abort "No user with a Spotify access token; run after at least one user has logged in." unless user
 
     client = SpotifyApiClient.new(user)
