@@ -3,6 +3,5 @@ class NostalgicArtist < ApplicationRecord
 
   validates :name, presence: true
   validates :era, presence: true, inclusion: { in: %w[formative high_school college] }
-  validates :spotify_artist_id, presence: true
-  validates :name, uniqueness: { scope: %i[user_id era] }
+  validates :spotify_artist_id, presence: true, uniqueness: { scope: %i[user_id era] }
 end

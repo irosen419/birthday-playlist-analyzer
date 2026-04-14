@@ -17,6 +17,6 @@ RSpec.describe NostalgicArtist, type: :model do
         .in_array(%w[formative high_school college])
     end
 
-    it { is_expected.to validate_uniqueness_of(:name).scoped_to(:user_id, :era) }
+    it { is_expected.to validate_uniqueness_of(:spotify_artist_id).scoped_to(:user_id, :era) }
   end
 end
