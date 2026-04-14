@@ -34,8 +34,7 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://postgres:postgres@localhost:5432
-      RAILS_MASTER_KEY: "00000000000000000000000000000001"
-      LOCKBOX_MASTER_KEY: "0000000000000000000000000000000000000000000000000000000000000001"
+      LOCKBOX_MASTER_KEY: ${{ secrets.LOCKBOX_MASTER_KEY }}
 
     steps:
       - uses: actions/checkout@v4
