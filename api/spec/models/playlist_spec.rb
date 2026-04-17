@@ -144,4 +144,19 @@ RSpec.describe Playlist, type: :model do
       expect(playlist.playlist_tracks.map(&:position)).to eq([1, 2])
     end
   end
+
+  describe 'excluded_track_spotify_ids' do
+    it 'defaults to an empty array' do
+      playlist = create(:playlist)
+
+      expect(playlist.excluded_track_spotify_ids).to eq([])
+    end
+
+    it 'persists an array of spotify IDs' do
+      playlist = create(:playlist)
+      playlist.update!(excluded_track_spotify_ids: %w[abc def])
+
+      expect(playlist.reload.excluded_track_spotify_ids).to eq(%w[abc def])
+    end
+  end
 end

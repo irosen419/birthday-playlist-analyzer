@@ -100,6 +100,17 @@ RSpec.describe "Api::Playlists", type: :request do
 
       expect(response).to have_http_status(:not_found)
     end
+
+    it "includes the excluded_track_spotify_ids list in the response" do
+      playlist = create(:playlist, user: user)
+      playlist.update!(excluded_track_spotify_ids: %w[excluded_a excluded_b])
+
+      get "/api/playlists/#{playlist.id}"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["excluded_track_spotify_ids"])
+        .to contain_exactly("excluded_a", "excluded_b")
+    end
   end
 
   describe "POST /api/playlists" do
@@ -222,6 +233,46 @@ RSpec.describe "Api::Playlists", type: :request do
       }.to change(Track, :count).by(1)
 
       expect(Track.find_by(spotify_id: "upsert_test").name).to eq("Upsert Song")
+    end
+
+    it "persists excluded_track_ids so removed tracks are remembered across sessions" do
+      patch "/api/playlists/#{playlist.id}",
+        params: { excluded_track_ids: %w[removed_a removed_b] },
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(playlist.reload.excluded_track_spotify_ids).to contain_exactly("removed_a", "removed_b")
+    end
+
+    it "replaces the stored excluded list with whatever the client sends" do
+      playlist.update!(excluded_track_spotify_ids: %w[old_a old_b])
+
+      patch "/api/playlists/#{playlist.id}",
+        params: { excluded_track_ids: %w[old_a new_c] },
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(playlist.reload.excluded_track_spotify_ids).to contain_exactly("old_a", "new_c")
+    end
+
+    it "drops an ID from the excluded list when the client omits it (re-add case)" do
+      playlist.update!(excluded_track_spotify_ids: %w[abc def ghi])
+
+      patch "/api/playlists/#{playlist.id}",
+        params: { excluded_track_ids: %w[abc ghi] },
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(playlist.reload.excluded_track_spotify_ids).to contain_exactly("abc", "ghi")
+    end
+
+    it "leaves the excluded list untouched when excluded_track_ids is omitted" do
+      playlist.update!(excluded_track_spotify_ids: %w[abc def])
+
+      patch "/api/playlists/#{playlist.id}", params: { name: "Just a rename" }
+
+      expect(response).to have_http_status(:ok)
+      expect(playlist.reload.excluded_track_spotify_ids).to contain_exactly("abc", "def")
     end
 
     it "updates generation config params" do
@@ -497,6 +548,38 @@ RSpec.describe "Api::Playlists", type: :request do
 
       post "/api/playlists/#{playlist.id}/generate",
         params: { birth_year: 1991, locked_track_ids: %w[locked1 locked2] },
+        as: :json
+    end
+
+    it "merges the playlist's excluded_track_spotify_ids into exclude_track_ids for the generator" do
+      playlist.update!(excluded_track_spotify_ids: %w[excluded_a excluded_b])
+
+      expect_any_instance_of(PlaylistGeneratorService).to receive(:generate) do |_, _analysis, opts|
+        expect(opts[:exclude_track_ids]).to include("locked1", "excluded_a", "excluded_b")
+        generate_result
+      end
+
+      post "/api/playlists/#{playlist.id}/generate",
+        params: { birth_year: 1991, locked_track_ids: %w[locked1] },
+        as: :json
+
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "does not count excluded tracks against the locked-based target_count" do
+      playlist.update!(
+        favorites_ratio: 0.3, discovery_ratio: 0.3, era_hits_ratio: 0.4,
+        target_song_count: 125,
+        excluded_track_spotify_ids: %w[excluded_a excluded_b]
+      )
+
+      expect_any_instance_of(PlaylistGeneratorService).to receive(:generate).with(
+        anything,
+        hash_including(target_count: 124)
+      ).and_return(generate_result)
+
+      post "/api/playlists/#{playlist.id}/generate",
+        params: { birth_year: 1991, locked_track_ids: %w[locked1] },
         as: :json
     end
 

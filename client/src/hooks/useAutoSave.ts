@@ -17,7 +17,8 @@ export function useAutoSave(
   name: string,
   tracks: PlaylistTrack[],
   birthYear?: number,
-  generationConfig?: GenerationConfig
+  generationConfig?: GenerationConfig,
+  excludedTrackIds?: string[]
 ) {
   const [isSaving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -49,6 +50,7 @@ export function useAutoSave(
           tracks,
           birthYear,
           ...mergedConfig,
+          excludedTrackIds,
         });
         inflightRef.current = savePromise.then(() => {}).catch(() => {});
         await savePromise;
@@ -71,7 +73,7 @@ export function useAutoSave(
     timerRef.current = setTimeout(doSave, DEBOUNCE_DELAY_MS);
 
     return () => clearTimeout(timerRef.current);
-  }, [playlistId, name, tracks, birthYear, generationConfig]);
+  }, [playlistId, name, tracks, birthYear, generationConfig, excludedTrackIds]);
 
   const flushSave = useCallback(async (overrides?: Partial<GenerationConfig>) => {
     clearTimeout(timerRef.current);

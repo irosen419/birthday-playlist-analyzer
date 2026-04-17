@@ -48,6 +48,7 @@ export default function PlaylistEditor() {
   const [name, setName] = useState('');
   const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
   const [lockedTrackIds, setLockedTrackIds] = useState<Set<string>>(new Set());
+  const [excludedTrackIds, setExcludedTrackIds] = useState<string[]>([]);
 
   const [generationConfig, setGenerationConfig] = useState<GenerationConfig>({
     favoritesRatio: 0.3,
@@ -74,6 +75,7 @@ export default function PlaylistEditor() {
     setLockedTrackIds(
       new Set(playlist.tracks.filter((t) => t.locked).map((t) => t.id))
     );
+    setExcludedTrackIds(playlist.excludedTrackIds);
     setGenerationConfig({
       favoritesRatio: playlist.favoritesRatio,
       discoveryRatio: playlist.discoveryRatio,
@@ -100,7 +102,14 @@ export default function PlaylistEditor() {
     generationConfig.targetSongCount,
   ]);
 
-  const { isSaving, justSaved, flushSave } = useAutoSave(playlistId, name, tracks, birthYear, stableConfig);
+  const { isSaving, justSaved, flushSave } = useAutoSave(
+    playlistId,
+    name,
+    tracks,
+    birthYear,
+    stableConfig,
+    excludedTrackIds
+  );
 
   const ratiosValid = areRatiosValid(generationConfig);
 
@@ -322,6 +331,9 @@ export default function PlaylistEditor() {
       next.delete(trackId);
       return next;
     });
+    setExcludedTrackIds((prev) =>
+      prev.includes(trackId) ? prev : [...prev, trackId]
+    );
   }, []);
 
   const handleAddTrack = useCallback((track: Track) => {
@@ -334,6 +346,7 @@ export default function PlaylistEditor() {
       };
       return [...prev, newTrack];
     });
+    setExcludedTrackIds((prev) => prev.filter((id) => id !== track.id));
   }, []);
 
   if (isLoading) return <LoadingSpinner />;

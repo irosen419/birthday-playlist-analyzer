@@ -54,6 +54,7 @@ export interface Playlist {
   targetSongCount: number;
   tracks: PlaylistTrack[];
   trackCount?: number;
+  excludedTrackIds: string[];
   createdAt: string;
   updatedAt: string;
 }

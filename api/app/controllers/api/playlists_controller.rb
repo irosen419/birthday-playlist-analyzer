@@ -47,6 +47,7 @@ module Api
         attrs[:era_hits_ratio] = data[:era_hits_ratio].to_f if data.key?(:era_hits_ratio)
         attrs[:target_song_count] = data[:target_song_count].to_i if data.key?(:target_song_count)
         @playlist.update!(attrs) if attrs.any?
+        update_excluded_track_ids(data[:excluded_track_ids], data[:included_track_ids])
         replace_tracks(data[:tracks]) if data[:tracks].present?
       end
 
@@ -70,6 +71,7 @@ module Api
     def generate
       birth_year = params[:birth_year]&.to_i || @playlist.effective_birth_year
       locked_track_ids = Array(params[:locked_track_ids])
+      excluded_track_ids = Array(@playlist.excluded_track_spotify_ids)
       config = @playlist.generation_config
 
       ratio_sum = config[:favorites_ratio] + config[:discovery_ratio] + config[:era_hits_ratio]
@@ -86,7 +88,7 @@ module Api
         analysis[:analysis],
         birth_year: birth_year,
         target_count: target_count,
-        exclude_track_ids: locked_track_ids,
+        exclude_track_ids: (locked_track_ids + excluded_track_ids).uniq,
         existing_tracks: existing_tracks_for_cap_seed,
         favorites_ratio: config[:favorites_ratio],
         discovery_ratio: config[:discovery_ratio],
@@ -158,6 +160,7 @@ module Api
     SERIALIZABLE_FIELDS = [
       :id, :name, :description, :birth_year, :spotify_playlist_id, :published_at,
       :favorites_ratio, :discovery_ratio, :era_hits_ratio, :target_song_count,
+      :excluded_track_spotify_ids,
       :created_at, :updated_at
     ].freeze
 
@@ -243,6 +246,17 @@ module Api
     def normalize_source(source)
       valid = PlaylistTrack.sources.keys
       valid.include?(source) ? source : "favorite"
+    end
+
+    # Replace the stored excluded list with whatever the client sends. The
+    # client is authoritative (same model as tracks/config — full state,
+    # idempotent auto-save). A missing key is "no change".
+    def update_excluded_track_ids(excluded, _included)
+      return if excluded.nil?
+
+      next_ids = Array(excluded).map(&:to_s).uniq
+      return if next_ids == Array(@playlist.excluded_track_spotify_ids)
+      @playlist.update!(excluded_track_spotify_ids: next_ids)
     end
 
     def replace_tracks(tracks_data)
