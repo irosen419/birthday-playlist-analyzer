@@ -158,12 +158,13 @@ export default function TrackItem({
           : 'hover:bg-[#2a2a2a]'
       }`}
     >
-      {/* Drag handle (desktop only) */}
+      {/* Drag handle */}
       <div
         {...dragHandleRest}
         onClick={handleDragHandleClick}
-        className="hidden cursor-grab text-sm text-[#6a6a6a] opacity-40 transition-opacity group-hover:opacity-100 md:block"
-        title="Click or drag to move"
+        className="-mx-1 cursor-grab touch-none px-1 py-2 text-base text-[#b3b3b3] opacity-70 transition-opacity md:mx-0 md:p-0 md:text-sm md:text-[#6a6a6a] md:opacity-40 md:group-hover:opacity-100"
+        title="Drag to reorder, tap to move"
+        aria-label="Drag to reorder"
       >
         &#8645;
       </div>
