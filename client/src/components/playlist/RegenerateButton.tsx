@@ -5,6 +5,7 @@ interface RegenerateButtonProps {
   lockedTrackIds: Set<string>;
   isGenerating: boolean;
   ratiosValid: boolean;
+  targetSongCount: number;
   onRegenerate: () => void;
   onLockAll: () => void;
   onUnlockAll: () => void;
@@ -18,6 +19,7 @@ export default function RegenerateButton({
   lockedTrackIds,
   isGenerating,
   ratiosValid,
+  targetSongCount,
   onRegenerate,
   onLockAll,
   onUnlockAll,
@@ -27,14 +29,19 @@ export default function RegenerateButton({
 }: RegenerateButtonProps) {
   const isEmpty = tracks.length === 0;
   const allLocked = tracks.length > 0 && lockedTrackIds.size === tracks.length;
+  const canAddMore = tracks.length < targetSongCount;
   const noneLocked = lockedTrackIds.size === 0;
   const someLockedCount = lockedTrackIds.size;
+  const regenerateDisabled = isGenerating || (allLocked && !canAddMore) || !ratiosValid;
 
   function handleClick() {
-    if (allLocked) {
-      alert(
-        'All tracks are locked. Unlock at least one track before regenerating.'
+    if (allLocked && canAddMore) {
+      const tracksToAdd = targetSongCount - tracks.length;
+      const confirmed = confirm(
+        `All ${tracks.length} tracks are locked and will stay in place. Generate ${tracksToAdd} more to reach your target of ${targetSongCount}?`
       );
+      if (!confirmed) return;
+      onRegenerate();
       return;
     }
 
@@ -56,13 +63,15 @@ export default function RegenerateButton({
     <div className="contents sm:flex sm:flex-wrap sm:items-center sm:gap-2">
       <button
         onClick={handleClick}
-        disabled={isGenerating || allLocked || !ratiosValid}
+        disabled={regenerateDisabled}
         title={
           !ratiosValid
             ? 'Ratios must sum to 100%'
-            : allLocked
+            : allLocked && !canAddMore
               ? 'Unlock at least one track to regenerate'
-              : undefined
+              : allLocked && canAddMore
+                ? `Generate ${targetSongCount - tracks.length} more tracks to reach your target of ${targetSongCount}`
+                : undefined
         }
         className="w-full cursor-pointer rounded-full border border-[#1DB954] bg-[#282828] px-6 py-2 text-sm font-semibold text-white transition-colors hover:border-[#1ed760] hover:bg-[#333333] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
       >

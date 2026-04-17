@@ -374,6 +374,7 @@ export default function PlaylistEditor() {
           lockedTrackIds={lockedTrackIds}
           isGenerating={generateMutation.isPending}
           ratiosValid={ratiosValid}
+          targetSongCount={generationConfig.targetSongCount}
           onRegenerate={async () => {
             const overrides = configRef.current?.commitPendingValues();
             configRef.current?.collapse();
