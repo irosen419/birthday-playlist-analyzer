@@ -39,3 +39,13 @@ body {
 }
 .equalizer > span:nth-child(2) { animation-delay: 0.2s; }
 .equalizer > span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes drag-pop {
+  0%   { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
+  40%  { box-shadow: 0 0 0 4px rgba(29, 185, 84, 0.55); }
+  100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
+}
+
+.animate-drag-pop {
+  animation: drag-pop 350ms ease-out;
+}

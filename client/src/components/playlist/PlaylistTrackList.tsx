@@ -31,6 +31,10 @@ export default function PlaylistTrackList({
     null
   );
 
+  function handleDragStart() {
+    navigator.vibrate?.(20);
+  }
+
   function handleDragEnd(result: DropResult) {
     if (!result.destination) return;
     if (result.source.index === result.destination.index) return;
@@ -76,18 +80,19 @@ export default function PlaylistTrackList({
         <span>Duration</span>
         <span className="w-[64px] text-right">Actions</span>
       </div>
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <Droppable droppableId="playlist-tracks">
           {(provided) => (
             <div ref={provided.innerRef} {...provided.droppableProps}>
               {tracks.map((track, index) => (
                 <Draggable key={track.id} draggableId={track.id} index={index}>
-                  {(draggableProvided) => (
+                  {(draggableProvided, draggableSnapshot) => (
                     <TrackItem
                       track={track}
                       index={index}
                       totalTracks={tracks.length}
                       provided={draggableProvided}
+                      isDragging={draggableSnapshot.isDragging}
                       isPopoverOpen={openPopoverTrackId === track.id}
                       onOpenPopover={setOpenPopoverTrackId}
                       onPlay={onPlay}
