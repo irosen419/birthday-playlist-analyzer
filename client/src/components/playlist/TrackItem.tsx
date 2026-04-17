@@ -10,6 +10,7 @@ interface TrackItemProps {
   index: number;
   totalTracks: number;
   provided: DraggableProvided;
+  isDragging: boolean;
   isPopoverOpen: boolean;
   onOpenPopover: (trackId: string | null) => void;
   onPlay: (uri: string) => void;
@@ -35,6 +36,7 @@ export default function TrackItem({
   index,
   totalTracks,
   provided,
+  isDragging,
   isPopoverOpen,
   onOpenPopover,
   onPlay,
@@ -156,7 +158,7 @@ export default function TrackItem({
         track.locked
           ? 'bg-[rgba(29,185,84,0.22)] hover:bg-[rgba(29,185,84,0.32)]'
           : 'hover:bg-[#2a2a2a]'
-      }`}
+      } ${isDragging ? 'animate-drag-pop' : ''}`}
     >
       {/* Drag handle */}
       <div

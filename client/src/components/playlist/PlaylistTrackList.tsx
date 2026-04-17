@@ -86,12 +86,13 @@ export default function PlaylistTrackList({
             <div ref={provided.innerRef} {...provided.droppableProps}>
               {tracks.map((track, index) => (
                 <Draggable key={track.id} draggableId={track.id} index={index}>
-                  {(draggableProvided) => (
+                  {(draggableProvided, draggableSnapshot) => (
                     <TrackItem
                       track={track}
                       index={index}
                       totalTracks={tracks.length}
                       provided={draggableProvided}
+                      isDragging={draggableSnapshot.isDragging}
                       isPopoverOpen={openPopoverTrackId === track.id}
                       onOpenPopover={setOpenPopoverTrackId}
                       onPlay={onPlay}
