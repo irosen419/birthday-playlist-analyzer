@@ -29,9 +29,14 @@ export default function SearchResults({ results, onAdd, addedTrackIds }: SearchR
             )}
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">
+              <a
+                href={`https://open.spotify.com/track/${track.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block truncate text-sm font-medium text-white hover:text-[#1DB954] hover:underline"
+              >
                 {track.name}
-              </p>
+              </a>
               <p className="truncate text-xs text-[#b3b3b3]">
                 {track.artists.map((a) => a.name).join(', ')}
               </p>
