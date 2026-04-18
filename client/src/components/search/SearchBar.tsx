@@ -41,6 +41,11 @@ export default function SearchBar({ onAddTrack }: SearchBarProps) {
 
   function handleAdd(track: Track) {
     onAddTrack(track);
+    setResults((prev) => prev.filter((t) => t.id !== track.id));
+  }
+
+  function handleClose() {
+    clearTimeout(timerRef.current);
     setQuery('');
     setResults([]);
   }
@@ -52,12 +57,23 @@ export default function SearchBar({ onAddTrack }: SearchBarProps) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search for tracks to add..."
-        className="w-full rounded-full bg-[#282828] px-5 py-3 text-sm text-white outline-none placeholder:text-[#6a6a6a] focus:ring-1 focus:ring-[#1DB954]"
+        className="w-full rounded-full bg-[#282828] px-5 py-3 pr-10 text-sm text-white outline-none placeholder:text-[#6a6a6a] focus:ring-1 focus:ring-[#1DB954]"
       />
-      {isSearching && (
+      {isSearching ? (
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#282828] border-t-[#1DB954]" />
         </div>
+      ) : (
+        query && (
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-[#b3b3b3] transition-colors hover:bg-[#3a3a3a] hover:text-white"
+          >
+            ✕
+          </button>
+        )
       )}
       {results.length > 0 && (
         <SearchResults results={results} onAdd={handleAdd} />
