@@ -17,10 +17,6 @@ export default function SearchBar({ onAddTrack, excludeTrackIds }: SearchBarProp
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const excludedIds = useMemo(() => new Set(excludeTrackIds ?? []), [excludeTrackIds]);
-  const visibleResults = useMemo(
-    () => results.filter((t) => !excludedIds.has(t.id)),
-    [results, excludedIds],
-  );
 
   useEffect(() => {
     if (!query.trim()) {
@@ -81,8 +77,12 @@ export default function SearchBar({ onAddTrack, excludeTrackIds }: SearchBarProp
           </button>
         )
       )}
-      {visibleResults.length > 0 && (
-        <SearchResults results={visibleResults} onAdd={handleAdd} />
+      {results.length > 0 && (
+        <SearchResults
+          results={results}
+          onAdd={handleAdd}
+          addedTrackIds={excludedIds}
+        />
       )}
     </div>
   );
