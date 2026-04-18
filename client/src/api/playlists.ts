@@ -68,6 +68,7 @@ function deserializePlaylist(raw: Record<string, unknown>): Playlist {
     targetSongCount: (raw.target_song_count ?? raw.targetSongCount ?? 125) as number,
     tracks,
     trackCount: (raw.track_count || raw.trackCount || tracks.length) as number,
+    excludedTrackIds: (raw.excluded_track_spotify_ids ?? raw.excludedTrackIds ?? []) as string[],
     createdAt: (raw.created_at || raw.createdAt) as string,
     updatedAt: (raw.updated_at || raw.updatedAt) as string,
   };
@@ -114,6 +115,7 @@ export async function updatePlaylist(
     discoveryRatio?: number;
     eraHitsRatio?: number;
     targetSongCount?: number;
+    excludedTrackIds?: string[];
   }
 ): Promise<Playlist> {
   const { data } = await apiClient.patch(`/api/playlists/${id}`, {
@@ -125,6 +127,7 @@ export async function updatePlaylist(
       era_hits_ratio: params.eraHitsRatio,
       target_song_count: params.targetSongCount,
       tracks: params.tracks.map(serializeTrack),
+      excluded_track_ids: params.excludedTrackIds,
     },
   });
   return deserializePlaylist(data);

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_04_14_180000) do
+ActiveRecord::Schema[8.0].define(version: 2026_04_17_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_04_14_180000) do
     t.float "discovery_ratio", default: 0.3
     t.float "era_hits_ratio", default: 0.4
     t.integer "target_song_count", default: 125
+    t.jsonb "excluded_track_spotify_ids", default: [], null: false
     t.index ["user_id"], name: "index_playlists_on_user_id"
   end
 
