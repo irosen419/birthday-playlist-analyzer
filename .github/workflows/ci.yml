@@ -37,7 +37,7 @@ jobs:
       LOCKBOX_MASTER_KEY: ${{ secrets.LOCKBOX_MASTER_KEY }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -60,7 +60,7 @@ jobs:
         working-directory: client
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
