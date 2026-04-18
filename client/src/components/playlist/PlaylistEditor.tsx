@@ -413,7 +413,10 @@ export default function PlaylistEditor() {
 
       <NostalgicArtistsEditor ref={nostalgicRef} defaultExpanded={isEmpty} />
 
-      <SearchBar onAddTrack={handleAddTrack} />
+      <SearchBar
+        onAddTrack={handleAddTrack}
+        excludeTrackIds={tracks.map((t) => t.id)}
+      />
 
       <PlaylistTrackList
         tracks={tracks}

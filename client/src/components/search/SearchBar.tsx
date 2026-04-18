@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Track } from '../../types';
 import { searchTracks } from '../../api/search';
 import SearchResults from './SearchResults';
@@ -7,13 +7,20 @@ const DEBOUNCE_DELAY_MS = 300;
 
 interface SearchBarProps {
   onAddTrack: (track: Track) => void;
+  excludeTrackIds?: string[];
 }
 
-export default function SearchBar({ onAddTrack }: SearchBarProps) {
+export default function SearchBar({ onAddTrack, excludeTrackIds }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Track[]>([]);
   const [isSearching, setSearching] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const excludedIds = useMemo(() => new Set(excludeTrackIds ?? []), [excludeTrackIds]);
+  const visibleResults = useMemo(
+    () => results.filter((t) => !excludedIds.has(t.id)),
+    [results, excludedIds],
+  );
 
   useEffect(() => {
     if (!query.trim()) {
@@ -41,7 +48,6 @@ export default function SearchBar({ onAddTrack }: SearchBarProps) {
 
   function handleAdd(track: Track) {
     onAddTrack(track);
-    setResults((prev) => prev.filter((t) => t.id !== track.id));
   }
 
   function handleClose() {
@@ -75,8 +81,8 @@ export default function SearchBar({ onAddTrack }: SearchBarProps) {
           </button>
         )
       )}
-      {results.length > 0 && (
-        <SearchResults results={results} onAdd={handleAdd} />
+      {visibleResults.length > 0 && (
+        <SearchResults results={visibleResults} onAdd={handleAdd} />
       )}
     </div>
   );
